@@ -115,7 +115,7 @@ class MainWindow(Frameless, QMainWindow):
 		QToolTip.setFont(theme.mono(8))
 		QApplication.instance().installEventFilter(self.dark_frames)
 		self.normal_geom = None
-		self.persist_ui = not (args.shot or args.quit or os.environ.get("HYPNOLENS_NO_UI_SAVE"))
+		self.persist_ui = not (args.shot or args.quit or os.environ.get("PENDULUM_NO_UI_SAVE"))
 		self.snap = {"loaded": False}
 		self.summaries = {}
 		self.levers = {}
@@ -752,7 +752,7 @@ class MainWindow(Frameless, QMainWindow):
 			self.log.add(f"working folder: {new} (the one in use)", "ok")
 			return
 		self.log.add(f"working folder → {new} after a restart · existing data stays in {now} (not moved)", "warn")
-		text = f"New working folder:\n{new}\n\nIt applies after a restart: until then HypnoLens keeps using\n{now}\n\nExisting data is not moved: profiles, levers, exports, trained lenses and caches stay where they are. Copy them into the new folder yourself if you want to keep using them."
+		text = f"New working folder:\n{new}\n\nIt applies after a restart: until then Pendulum keeps using\n{now}\n\nExisting data is not moved: profiles, levers, exports, trained lenses and caches stay where they are. Copy them into the new folder yourself if you want to keep using them."
 		if carry:
 			text += "\n\nAt the next start, your settings, window layout, goals and custom levers are copied there (only the files it does not have yet)."
 		self.notice("Working folder", text)

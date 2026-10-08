@@ -5,7 +5,7 @@ import shutil
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DATA_DIR = os.path.join(ROOT, "data")
 WORKDIR_PATH = os.path.join(ROOT, "workdir.json")
-DATA_ENV = os.environ.get("HYPNOLENS_DATA_DIR") or ""
+DATA_ENV = os.environ.get("PENDULUM_DATA_DIR") or ""
 CARRY_FILES = ("settings.json", "ui.json", "goals.json", "custom_traits.json", "trait_overrides.json")
 
 

@@ -3915,7 +3915,7 @@ class SettingsDialog(EvaDialog):
 	def _sound_text(self):
 		SFX.load_pack()
 		if SFX.muted:
-			text, color = "sound is off for this run (HYPNOLENS_NO_SOUND is set)", theme.WARN
+			text, color = "sound is off for this run (PENDULUM_NO_SOUND is set)", theme.WARN
 		elif SFX.failed:
 			text, color = f"no sound output: {SFX.failed}", theme.ERR
 		elif SFX.pack_errors:
@@ -3944,13 +3944,13 @@ class SettingsDialog(EvaDialog):
 	def _wd_text(self, *_a):
 		if config.DATA_ENV:
 			env = config.DATA_ENV.replace("\\", "/")
-			self.wd.setToolTip(f"{env}\nset for this run by --data-dir (or HYPNOLENS_DATA_DIR): workdir.json is neither read nor written")
-			self.wd_hint.setText(f"set for this run by --data-dir or HYPNOLENS_DATA_DIR (workdir.json is not used): {env}")
+			self.wd.setToolTip(f"{env}\nset for this run by --data-dir (or PENDULUM_DATA_DIR): workdir.json is neither read nor written")
+			self.wd_hint.setText(f"set for this run by --data-dir or PENDULUM_DATA_DIR (workdir.json is not used): {env}")
 			return
 		target = config.norm_dir(self.wd.text())
 		shown = target or config.DEFAULT_DATA_DIR.replace("\\", "/")
 		now = config.DATA_DIR.replace("\\", "/")
-		self.wd.setToolTip(f"{shown}\nwhere HypnoLens keeps profiles, levers, exports, trained lenses, caches, settings and window layout\nempty = the data folder of the project · applies after a restart · existing data is never moved")
+		self.wd.setToolTip(f"{shown}\nwhere Pendulum keeps profiles, levers, exports, trained lenses, caches, settings and window layout\nempty = the data folder of the project · applies after a restart · existing data is never moved")
 		if config.same_dir(target, config.DATA_DIR):
 			self.wd_hint.setText(f"in use: {now}" + (f"   ·   {config.DATA_DIR_ERROR}" if config.DATA_DIR_ERROR else ""))
 			self.wd_hint.setStyleSheet(f"color: {theme.ERR if config.DATA_DIR_ERROR else theme.DIM};")
@@ -4226,7 +4226,7 @@ class ExportDialog(EvaDialog):
 		lb.addLayout(row)
 		self.example = _note("")
 		lb.addWidget(self.example)
-		self.lora_note = _note("a lever adds a fixed vector to the model's activations; a LoRA changes weights, so it can only approximate it: rank 1 per layer on the MLP output, fitted in about a minute on sample prompts. How much of the steering it reproduces is measured on unseen prompts and written in hypnolens.json (≈ 99% of the next-token gap on Qwen3.5-4B). ComfyUI: LoraLoader with strength_model 0, strength_clip = how strong")
+		self.lora_note = _note("a lever adds a fixed vector to the model's activations; a LoRA changes weights, so it can only approximate it: rank 1 per layer on the MLP output, fitted in about a minute on sample prompts. How much of the steering it reproduces is measured on unseen prompts and written in pendulum.json (≈ 99% of the next-token gap on Qwen3.5-4B). ComfyUI: LoraLoader with strength_model 0, strength_clip = how strong")
 		self.lora_note.setWordWrap(True)
 		lb.addWidget(self.lora_note)
 		lay.addWidget(self.lora_box)
@@ -4262,7 +4262,7 @@ class ExportDialog(EvaDialog):
 		return f"{arch}_{name}" if name else arch
 
 	def _where(self, _t=""):
-		self.where.setText(f"written to {config.EXPORTS_DIR.replace(os.sep, '/')}/{self.final_name()}/ with a manifest (hypnolens.json) of the levers, strengths and profiles, a run_llama_server.bat and the LM Studio override (lmstudio_override.txt)")
+		self.where.setText(f"written to {config.EXPORTS_DIR.replace(os.sep, '/')}/{self.final_name()}/ with a manifest (pendulum.json) of the levers, strengths and profiles, a run_llama_server.bat and the LM Studio override (lmstudio_override.txt)")
 
 	def _dose_text(self, v):
 		self.dose_hint.setText("  as now" if abs(v - 1.0) < 1e-6 else (f"  {v:.0%} of the current strength" if v < 1 else f"  {v:.2f}× stronger than now: check coherence"))

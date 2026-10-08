@@ -31,7 +31,7 @@ def parse():
 streams()
 ARGS = parse()
 if ARGS.data_dir:
-	os.environ["HYPNOLENS_DATA_DIR"] = os.path.abspath(os.path.expanduser(ARGS.data_dir))
+	os.environ["PENDULUM_DATA_DIR"] = os.path.abspath(os.path.expanduser(ARGS.data_dir))
 
 import config
 

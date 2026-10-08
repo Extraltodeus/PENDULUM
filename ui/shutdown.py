@@ -313,8 +313,8 @@ class Shutdown(QObject):
 		self.power_off()
 
 	def power_off(self):
-		if os.environ.get("HYPNOLENS_NO_SHUTDOWN"):
-			self.log("shutdown (dry run: HYPNOLENS_NO_SHUTDOWN is set, the computer stays on)", "warn")
+		if os.environ.get("PENDULUM_NO_SHUTDOWN"):
+			self.log("shutdown (dry run: PENDULUM_NO_SHUTDOWN is set, the computer stays on)", "warn")
 			return
 		try:
 			if sys.platform.startswith("win"):

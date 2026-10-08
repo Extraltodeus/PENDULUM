@@ -59,7 +59,7 @@ class Sfx:
 		self.on = False
 		self.volume = 0.6
 		self.groups = set(GROUPS)
-		self.muted = bool(os.environ.get("HYPNOLENS_NO_SOUND"))
+		self.muted = bool(os.environ.get("PENDULUM_NO_SOUND"))
 		self.lock = threading.Lock()
 		self.pack_sig = None
 		self.warmed = False

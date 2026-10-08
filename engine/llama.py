@@ -162,7 +162,7 @@ SIGNATURES = {
 
 
 def find_llama_dir(hint=""):
-	for cand in (hint, os.environ.get("HYPNOLENS_LLAMA", ""), "D:/llama.cpp", "C:/llama.cpp", os.path.dirname(shutil.which("llama-server") or "")):
+	for cand in (hint, os.environ.get("PENDULUM_LLAMA", ""), "D:/llama.cpp", "C:/llama.cpp", os.path.dirname(shutil.which("llama-server") or "")):
 		found = find_bin(cand, 1) if cand else ""
 		if found:
 			return found

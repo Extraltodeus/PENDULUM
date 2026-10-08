@@ -21,7 +21,7 @@ No endless prompt, no token to guess: it looks where each trait lives inside the
 # PyTorch for your GPU: https://pytorch.org/get-started/locally/
 pip install torch --index-url https://download.pytorch.org/whl/cu130
 pip install -r requirements.txt
-python HypnoLens.pyw
+python Pendulum.pyw
 ```
 
 On first launch, an assistant sets up the rest in four screens: working folder, llama.cpp (found, or downloaded for your machine), model folders, judge.
@@ -61,9 +61,9 @@ A **lens** translates the inner layers into words. In it we find the **band** wh
 
 ## Further
 
-- **[Full guide](docs/GUIDE.md)** · every window, every setting, every measure (in French)
+- **[Full guide](docs/GUIDE.md)** · every window, every setting, every measure
 - **[Code map](CODEMAP.md)** · what lives where
-- **Scripted mode** · `python HypnoLens.pyw --load model.gguf --lever warmth=-1,humor=0.8 --chat "Hello"`
+- **Scripted mode** · `python Pendulum.pyw --load model.gguf --lever warmth=-1,humor=0.8 --chat "Hello"`
 
 &nbsp;
 

@@ -174,7 +174,7 @@ def export(session, name, dose=1.0, kind="cvec", on_progress=None, style="hf", p
 		model = os.path.join(out_dir, f"{os.path.splitext(os.path.basename(info['path']))[0]}.{name}.baked.gguf")
 		bake(info["path"], model, {l: np.asarray(v, dtype=np.float32) * dose for l, v in vectors.items()}, session.engine.lib.dir, json.dumps(manifest["strengths"]), on_progress)
 		manifest["baked_model"] = model
-	with open(os.path.join(out_dir, "hypnolens.json"), "w", encoding="utf-8") as f:
+	with open(os.path.join(out_dir, "pendulum.json"), "w", encoding="utf-8") as f:
 		json.dump(manifest, f, ensure_ascii=False, indent=1)
 	flags = []
 	if cvec and not baked:
@@ -183,7 +183,7 @@ def export(session, name, dose=1.0, kind="cvec", on_progress=None, style="hf", p
 		flags.append("--lora-scaled " + '"' + ",".join(f"{a['file']}:{a['scale'] * dose:g}" for a in adapters) + '"')
 	if lora:
 		flags.append(f'--lora-scaled "{lora["gguf"]}:1"')
-	notes = ([f"levers baked into the model (dose {dose:g})"] if baked else []) + ([f"levers converted to a LoRA (dose {dose:g} included, approximation: see hypnolens.json)"] if lora else [])
+	notes = ([f"levers baked into the model (dose {dose:g})"] if baked else []) + ([f"levers converted to a LoRA (dose {dose:g} included, approximation: see pendulum.json)"] if lora else [])
 	launcher(out_dir, session.engine.lib.dir, model, flags, notes, info["n_ctx"])
 	lm = lmstudio(out_dir, cvec if not baked else None, adapters, lora, dose)
 	text = lmstudio_file(out_dir, lm)
@@ -217,7 +217,7 @@ def export_saved_lora(src, name, model="", model_name="", arch="", goal="", scal
 	shutil.copyfile(src, dst)
 	adapters = [{"file": os.path.basename(dst), "scale": float(scale)}]
 	manifest = {"name": name, "created": datetime.now().isoformat(timespec="seconds"), "model": model or None, "model_name": model_name or None, "arch": arch or None, "goal": goal or None, "source": src, "lora_adapters": adapters, "note": "LoRA trained in GOALS (TRAIN), copied as it is (exported without loading the model)"}
-	with open(os.path.join(out_dir, "hypnolens.json"), "w", encoding="utf-8") as f:
+	with open(os.path.join(out_dir, "pendulum.json"), "w", encoding="utf-8") as f:
 		json.dump(manifest, f, ensure_ascii=False, indent=1)
 	notes = [f"LoRA of the goal '{goal}' as trained in GOALS (TRAIN)"] + ([] if model else ["its model was not found in your model folders: replace MODEL.gguf with its path"])
 	launcher(out_dir, llama_dir, model or "MODEL.gguf", [f'--lora-scaled "{adapters[0]["file"]}:{float(scale):g}"'], notes, n_ctx or config.DEFAULTS["n_ctx"])

@@ -164,7 +164,7 @@ class Wizard(EvaDialog):
 		if config.DATA_ENV:
 			for x in (self.wd_default, self.wd_own, self.wd_edit):
 				x.setEnabled(False)
-			v.addWidget(caption(f"this run uses {config.DATA_ENV.replace(os.sep, '/')} (--data-dir or HYPNOLENS_DATA_DIR): the setup writes there and leaves the usual working folder alone", theme.WARN))
+			v.addWidget(caption(f"this run uses {config.DATA_ENV.replace(os.sep, '/')} (--data-dir or PENDULUM_DATA_DIR): the setup writes there and leaves the usual working folder alone", theme.WARN))
 		elif not self.first:
 			v.addWidget(caption("a new folder applies after a restart; your settings, goals and custom levers are copied there, the rest stays where it is"))
 		v.addStretch(1)
