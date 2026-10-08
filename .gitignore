@@ -1,0 +1,21 @@
+data/
+_verif/
+_legacy/
+__pycache__/
+*.pyc
+.claude/
+.vscode/
+.idea/
+.venv/
+venv/
+2eme partie.txt
+fourre_tout/
+PLAN.md
+workdir.json
+workdir.json.tmp
+assets/
+*.lnk
+start.bat
+*.gguf
+*.safetensors
+*.wav

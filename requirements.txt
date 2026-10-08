@@ -1,0 +1,15 @@
+PySide6>=6.8
+numpy>=2.0
+torch>=2.6
+transformers>=5.13
+accelerate>=1.10
+huggingface_hub>=1.0
+safetensors>=0.5
+gguf>=0.17
+sentencepiece>=0.2
+moderngl>=5.10
+nvidia-ml-py>=12.0
+jinja2>=3.1
+tqdm>=4.66
+psutil>=5.9
+jlens @ git+https://github.com/anthropics/jacobian-lens
