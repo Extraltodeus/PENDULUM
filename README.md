@@ -6,6 +6,7 @@ No endless prompt, no token to guess: it looks where each trait lives inside the
 &nbsp;
 
 <p align="center"><img src="docs/screenshot.png" alt="Pendulum: the personality iris, the levers, the sync and the chat" width="100%"></p>
+<p align="center"><img src="docs/sync.gif" alt="" width="100%"></p>
 
 &nbsp;
 
