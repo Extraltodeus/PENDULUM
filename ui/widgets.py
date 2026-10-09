@@ -3623,8 +3623,8 @@ class SettingsDialog(EvaDialog):
 		self.wd.textChanged.connect(self._wd_text)
 		self._wd_text()
 		section("ENGINE")
-		browse = button("…", "pick the llama.cpp folder (llama.dll, llama-fit-params.exe)", width=34)
-		row("llama_dir", "llama.cpp folder", QLineEdit(settings.get("llama_dir", "")), "folder with llama.dll, ggml*.dll and llama-fit-params.exe", browse)
+		browse = button("…", "pick the llama.cpp folder (llama library, llama-fit-params)", width=34)
+		row("llama_dir", "llama.cpp folder", QLineEdit(settings.get("llama_dir", "")), "folder with the llama and ggml libraries (llama.dll or libllama.so…) and llama-fit-params", browse)
 		browse.clicked.connect(self._pick_llama)
 		dirs = QPlainTextEdit("\n".join(settings.get("model_dirs") or []))
 		dirs.setFixedHeight(58)
@@ -4194,7 +4194,7 @@ class ExportDialog(EvaDialog):
 		lay.addLayout(dose_row)
 		self.dose.valueChanged.connect(self._dose_text)
 		self._dose_text(1.0)
-		self.fmt_cvec = QRadioButton("control vector: .cvec.gguf + run_llama_server.bat (the model file is untouched)")
+		self.fmt_cvec = QRadioButton("control vector: .cvec.gguf + a run_llama_server launcher (the model file is untouched)")
 		self.fmt_bake = QRadioButton("baked model: a copy of the GGUF with the levers inside (no control vector needed)")
 		self.fmt_lora = QRadioButton("LoRA (approximation): .lora.gguf for llama.cpp + .safetensors (Hugging Face, PEFT, ComfyUI…)")
 		grp = QButtonGroup(self)
@@ -4262,7 +4262,7 @@ class ExportDialog(EvaDialog):
 		return f"{arch}_{name}" if name else arch
 
 	def _where(self, _t=""):
-		self.where.setText(f"written to {config.EXPORTS_DIR.replace(os.sep, '/')}/{self.final_name()}/ with a manifest (pendulum.json) of the levers, strengths and profiles, a run_llama_server.bat and the LM Studio override (lmstudio_override.txt)")
+		self.where.setText(f"written to {config.EXPORTS_DIR.replace(os.sep, '/')}/{self.final_name()}/ with a manifest (pendulum.json) of the levers, strengths and profiles, a run_llama_server launcher (.bat or .sh) and the LM Studio override (lmstudio_override.txt)")
 
 	def _dose_text(self, v):
 		self.dose_hint.setText("  as now" if abs(v - 1.0) < 1e-6 else (f"  {v:.0%} of the current strength" if v < 1 else f"  {v:.2f}× stronger than now: check coherence"))

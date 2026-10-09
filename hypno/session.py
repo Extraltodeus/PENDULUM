@@ -12,6 +12,7 @@ import config
 from engine.ggufio import summary as gguf_summary
 from engine.gpus import plan_load, reserve_mibs
 from engine.llama import find_llama_dir, same_dir
+from engine.llamadist import find_bin, lib_file
 from engine.runtime import LORA, Engine
 from engine import stconvert, torchload
 from hypno import catalog
@@ -184,8 +185,8 @@ class Session:
 		self.sampling = dict(self.settings["sampling"])
 		config.save_settings(self.settings)
 		want = self.settings.get("llama_dir") or ""
-		if want and not os.path.isfile(os.path.join(want, "llama.dll")):
-			self.log(f"no llama.dll in {want}: the llama.cpp folder found automatically is used instead", "warn")
+		if want and not find_bin(want, 1):
+			self.log(f"no {lib_file('llama')} in {want}: the llama.cpp folder found automatically is used instead", "warn")
 		if self.engine is not None and not same_dir(find_llama_dir(want), self.engine.lib.dir):
 			self.log("llama.cpp folder changed: restart Pendulum to use it", "warn")
 		self.log("settings saved")

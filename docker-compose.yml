@@ -1,0 +1,21 @@
+services:
+  pendulum:
+    build: .
+    image: pendulum
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}
+      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/tmp}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./data:/data
+      - ${HF_CACHE:-~/.cache/huggingface}:/hf
+      - ${MODELS:-./models}:/models
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility, graphics]

@@ -19,3 +19,4 @@ start.bat
 *.gguf
 *.safetensors
 *.wav
+models/

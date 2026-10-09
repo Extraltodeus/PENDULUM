@@ -182,7 +182,7 @@ class Wizard(EvaDialog):
 	def _llama_page(self):
 		w, v = self._page("THE ENGINE: LLAMA.CPP", "Pendulum runs your models through the llama.cpp library. Point to a llama.cpp folder (a release or your own build), or let Pendulum fetch the build that suits this computer.")
 		self.ll_edit = QLineEdit(self.settings.get("llama_dir") or LD.guess(config.DATA_DIR))
-		self.ll_edit.setPlaceholderText("folder with llama.dll / libllama, e.g. D:/llama.cpp")
+		self.ll_edit.setPlaceholderText("folder with llama.dll / libllama.so, e.g. D:/llama.cpp or /opt/llama.cpp/build/bin")
 		self.ll_edit.textChanged.connect(lambda _t: self._llama_status())
 		v.addLayout(path_row(self.ll_edit, self._pick_llama))
 		grid = QGridLayout()

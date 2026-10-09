@@ -235,7 +235,7 @@ class AssetsDialog(EvaDialog):
 		except OSError as exc:
 			self.log(f"LoRA export failed: {exc}", "error")
 			return
-		self.log(f"LoRA of the goal '{info['goal']}' exported to {res['dir'].replace(os.sep, '/')} (run_llama_server.bat, lmstudio_override.txt)", "ok")
+		self.log(f"LoRA of the goal '{info['goal']}' exported to {res['dir'].replace(os.sep, '/')} (run_llama_server launcher, lmstudio_override.txt)", "ok")
 		self.reload()
 
 	def reveal(self, items):

@@ -8,6 +8,7 @@ import numpy as np
 
 import config
 from engine.ggufio import gguf_module
+from engine.llamadist import exe, system
 from engine.runtime import LORA
 
 
@@ -191,13 +192,22 @@ def export(session, name, dose=1.0, kind="cvec", on_progress=None, style="hf", p
 
 
 def launcher(out_dir, llama_dir, model, flags, notes, n_ctx):
-	server = os.path.join(llama_dir, "llama-server.exe") if llama_dir else "llama-server.exe"
-	lines = ["@echo off", 'cd /d "%~dp0"'] + [f"rem {n}" for n in notes]
+	server = os.path.join(llama_dir, exe("llama-server")) if llama_dir else exe("llama-server")
+	win = system() == "win"
+	rem = "rem " if win else "# "
+	lines = (["@echo off", 'cd /d "%~dp0"'] if win else ["#!/bin/sh", 'cd "$(dirname "$0")"']) + [rem + n for n in notes]
 	if flags:
-		lines.append("rem after each file, the number past the colon is its strength: edit it to make the levers weaker or stronger")
+		lines.append(rem + "after each file, the number past the colon is its strength: edit it to make the levers weaker or stronger")
 	lines.append(f'"{server}" -m "{model}" ' + " ".join(flags + ["-ngl 999", f"-c {n_ctx}", "--port 8080"]))
-	with open(os.path.join(out_dir, "run_llama_server.bat"), "w", encoding="utf-8", newline="\r\n") as f:
+	path = os.path.join(out_dir, launcher_name())
+	with open(path, "w", encoding="utf-8", newline="\r\n" if win else "\n") as f:
 		f.write("\n".join(lines) + "\n")
+	if not win:
+		os.chmod(path, 0o755)
+
+
+def launcher_name():
+	return "run_llama_server." + ("bat" if system() == "win" else "sh")
 
 
 def lmstudio_file(out_dir, lm):

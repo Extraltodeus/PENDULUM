@@ -54,7 +54,7 @@ A **lens** translates the inner layers into words. In it we find the **band** wh
 
 ## Requirements
 
-- Windows 10 or 11, Python 3.11 or newer.
+- Windows 10 or 11, Python 3.11 or newer. Linux: should work, untested so far (or through [Docker](docs/GUIDE.md#docker)).
 - An NVIDIA GPU, preferably.
 - GGUF models. Safetensors are converted once.
 
@@ -65,6 +65,7 @@ A **lens** translates the inner layers into words. In it we find the **band** wh
 - **[Full guide](docs/GUIDE.md)** · every window, every setting, every measure
 - **[Code map](CODEMAP.md)** · what lives where
 - **Scripted mode** · `python Pendulum.pyw --load model.gguf --lever warmth=-1,humor=0.8 --chat "Hello"`
+- **[Docker](docs/GUIDE.md#docker)** · `docker compose up --build`, for those who enjoy it
 
 &nbsp;
 

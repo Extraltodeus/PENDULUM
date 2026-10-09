@@ -3,10 +3,12 @@ import re
 import shlex
 import subprocess
 
+from engine.llamadist import exe as exe_name
+
 MIB = 1024 * 1024
 BASE_MARGIN_MIB = 640
 HEADLESS_MARGIN_MIB = 256
-CREATE_NO_WINDOW = 0x08000000
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def display_gpus():
@@ -58,7 +60,7 @@ def load_args(options):
 
 
 def _run_fit(llama_dir, path, n_ctx, margins_mib, estimate=False, extra=()):
-	exe = os.path.join(llama_dir, "llama-fit-params.exe")
+	exe = os.path.join(llama_dir, exe_name("llama-fit-params"))
 	if not os.path.isfile(exe):
 		return None
 	args = [exe, "-m", path, "-c", str(int(n_ctx)), "-fitt", ",".join(str(int(m)) for m in margins_mib), "-ub", "512", "-b", "512"]

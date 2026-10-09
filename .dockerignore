@@ -1,0 +1,16 @@
+.git
+.claude
+data
+models
+_verif
+_legacy
+fourre_tout
+assets
+**/__pycache__
+*.pyc
+*.gguf
+*.safetensors
+*.lnk
+start.bat
+workdir.json
+PLAN.md

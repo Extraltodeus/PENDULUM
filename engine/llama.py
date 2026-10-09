@@ -4,7 +4,7 @@ import shutil
 
 import numpy as np
 
-from engine.llamadist import find_bin
+from engine.llamadist import exe, find_bin, lib_file, system
 
 c_int32 = ctypes.c_int32
 c_int64 = ctypes.c_int64
@@ -162,7 +162,8 @@ SIGNATURES = {
 
 
 def find_llama_dir(hint=""):
-	for cand in (hint, os.environ.get("PENDULUM_LLAMA", ""), "D:/llama.cpp", "C:/llama.cpp", os.path.dirname(shutil.which("llama-server") or "")):
+	usual = ("D:/llama.cpp", "C:/llama.cpp") if system() == "win" else ("/opt/llama.cpp", os.path.expanduser("~/llama.cpp"), "/usr/local/lib", "/usr/lib")
+	for cand in (hint, os.environ.get("PENDULUM_LLAMA", "")) + usual + (os.path.dirname(shutil.which(exe("llama-server")) or ""),):
 		found = find_bin(cand, 1) if cand else ""
 		if found:
 			return found
@@ -176,12 +177,17 @@ def same_dir(a, b):
 class Lib:
 	def __init__(self, llama_dir):
 		self.dir = os.path.abspath(llama_dir)
-		self._dll_dirs = [os.add_dll_directory(self.dir)]
-		for name in ("cudart64_12.dll", "cudart64_13.dll"):
-			found = shutil.which(name)
-			if found:
-				self._dll_dirs.append(os.add_dll_directory(os.path.dirname(found)))
-		self._libs = [ctypes.CDLL(os.path.join(self.dir, n)) for n in ("ggml-base.dll", "ggml.dll", "llama.dll")]
+		self._dll_dirs = []
+		mode = ctypes.DEFAULT_MODE
+		if system() == "win":
+			self._dll_dirs.append(os.add_dll_directory(self.dir))
+			for name in ("cudart64_12.dll", "cudart64_13.dll"):
+				found = shutil.which(name)
+				if found:
+					self._dll_dirs.append(os.add_dll_directory(os.path.dirname(found)))
+		else:
+			mode = ctypes.RTLD_GLOBAL
+		self._libs = [ctypes.CDLL(os.path.join(self.dir, lib_file(n)), mode=mode) for n in ("ggml-base", "ggml", "llama")]
 		for name, sig in SIGNATURES.items():
 			fn = self._lookup(name)
 			fn.restype = sig[0]

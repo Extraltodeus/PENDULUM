@@ -9,7 +9,7 @@ import time
 import config
 
 WORKER = os.path.join(config.ROOT, "lens", "fit_worker.py")
-CREATE_NO_WINDOW = 0x08000000
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 GGUF_ARCHS = {"llama", "mistral", "qwen2", "qwen2moe", "qwen3", "qwen3moe", "gemma2", "gemma3", "gemma4", "phi3", "falcon", "stablelm", "starcoder2", "nemotron", "gpt2", "bloom", "deci", "gpt-oss", "lfm2"}
 
 
@@ -115,6 +115,8 @@ class Fitter:
 		self._emit()
 
 	def _python(self):
+		if not sys.platform.startswith("win"):
+			return sys.executable
 		exe = os.path.join(os.path.dirname(sys.executable), "python.exe")
 		return exe if os.path.exists(exe) else sys.executable
 
