@@ -16,11 +16,11 @@
   <circle cx="1040" cy="20" r="5" fill="#f2f0ec"/>
   <circle cx="947.3" cy="305.3" r="26" fill="#ff6a1a"/>
   <text x="76" y="236" fill="#f2f0ec" font-size="124" font-weight="700" letter-spacing="-5">PENDULUM</text>
-  <text x="82" y="290" fill="#8a8790" font-size="27">La personnalité d'un LLM, réglée au curseur.</text>
+  <text x="82" y="290" fill="#8a8790" font-size="27">An LLM's personality, tuned with sliders.</text>
   <g font-size="15" font-weight="700" letter-spacing="3">
-    <text x="80" y="384" fill="#f2f0ec">01 MESURER</text>
-    <text x="400" y="384" fill="#f2f0ec">02 RÉGLER</text>
-    <text x="720" y="384" fill="#f2f0ec">03 INCARNER</text>
-    <text x="1040" y="384" fill="#ff6a1a">04 EXPORTER</text>
+    <text x="80" y="384" fill="#f2f0ec">01 MEASURE</text>
+    <text x="400" y="384" fill="#f2f0ec">02 TUNE</text>
+    <text x="720" y="384" fill="#f2f0ec">03 EMBODY</text>
+    <text x="1040" y="384" fill="#ff6a1a">04 EXPORT</text>
   </g>
 </svg>
