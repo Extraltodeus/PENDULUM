@@ -2318,6 +2318,12 @@ class Session:
 			self.history[-1]["content"] = text
 			self.persist()
 
+	def rewind_chat(self):
+		while self.history:
+			if self.history.pop()["role"] == "user":
+				break
+		self.persist()
+
 	def reset_chat(self):
 		self.history = []
 		self.emit("chat_reset", {})

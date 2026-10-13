@@ -2359,6 +2359,7 @@ class ChatPanel(QWidget):
 	reply_chosen = Signal(str)
 	history_requested = Signal()
 	apply_requested = Signal()
+	rewind = Signal()
 
 	def __init__(self, parent=None):
 		super().__init__(parent)
@@ -2391,15 +2392,17 @@ class ChatPanel(QWidget):
 		row.addWidget(self.meta, 1)
 		self.b_stop = button("STOP", "stop the generation (Esc)")
 		self.b_retry = button("↻ RETRY", "regenerate the last answer with the current levers (Ctrl+R)\nthe earlier tries stay: ‹ › on the reply browses them")
+		self.b_rewind = button("↶ REWIND", "take back the last message and its reply: the dialogue goes back one exchange, so RETRY works on the message before\nthe message comes back in the input (if it is empty) to edit or send again · its replies stay in the HISTORY")
 		self.b_hist = button("HISTORY", "every reply with the configuration that made it, retries and cleared dialogues included (Ctrl+H)")
 		self.b_clear = button("CLEAR", "clear the conversation (its replies stay in the HISTORY)")
 		self.b_send = button("SEND", "send (Enter): replies at once when nothing waits in TO DO\notherwise the message waits after the operations planned before it (APPLY runs them), it never goes ahead of lever settings\nplan several messages, lever changes and tries this way, come back later and pick the replies you like", accent=True)
-		for b in (self.b_hist, self.b_clear, self.b_stop, self.b_retry, self.b_send):
+		for b in (self.b_hist, self.b_clear, self.b_stop, self.b_rewind, self.b_retry, self.b_send):
 			row.addWidget(b)
 		lay.addLayout(row)
 		self.b_send.clicked.connect(self._send)
 		self.b_stop.clicked.connect(self.stop.emit)
 		self.b_retry.clicked.connect(self._retry)
+		self.b_rewind.clicked.connect(self.rewind.emit)
 		self.b_hist.clicked.connect(self.history_requested.emit)
 		self.b_clear.clicked.connect(self._clear)
 		self.head = QLabel("")
@@ -2499,6 +2502,19 @@ class ChatPanel(QWidget):
 		if not any(m[0] == "user" for m in self.msgs):
 			return
 		self.retry.emit()
+
+	def take_back(self):
+		if self.streaming:
+			return False
+		i = next((k for k in range(len(self.msgs) - 1, -1, -1) if self.msgs[k][0] == "user"), None)
+		if i is None:
+			return False
+		text = self.msgs[i][1]
+		self.msgs = self.msgs[:i]
+		self.render()
+		if not self.input.toPlainText().strip():
+			self.input.setPlainText(text)
+		return True
 
 	def _last_assistant(self):
 		for i in range(len(self.msgs) - 1, -1, -1):

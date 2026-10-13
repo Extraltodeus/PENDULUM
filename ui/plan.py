@@ -5,8 +5,8 @@ import time
 SETTINGS = {"levers", "align", "system", "active", "load", "unload", "exempt", "apply_settings", "judge"}
 INFO = {"measure", "read_scale"}
 CHAT = {"chat"}
-INSTANT = {"levers_as_set", "rebuild", "drop", "preset_load", "add_trait", "trait_edit", "goal_as_lever", "reset_chat", "chat_pick"}
-DEFAULT_ETA = {"levers_as_set": 5, "read_scale": 14, "levers": 30, "judge": 30, "align": 150, "measure": 45, "profile": 120, "calibrate": 50, "recalibrate": 50, "map": 40, "chat": 25, "load": 20, "unload": 3, "goal_check": 60, "goal_align": 240, "goal_optimize": 900, "export": 60, "rebuild": 15, "active": 10, "system": 1, "exempt": 10, "goal_as_lever": 10, "drop": 10, "apply_settings": 30, "add_trait": 40, "trait_edit": 15, "preset_load": 5, "reset_chat": 1, "chat_pick": 1}
+INSTANT = {"levers_as_set", "rebuild", "drop", "preset_load", "add_trait", "trait_edit", "goal_as_lever", "reset_chat", "rewind_chat", "chat_pick"}
+DEFAULT_ETA = {"levers_as_set": 5, "read_scale": 14, "levers": 30, "judge": 30, "align": 150, "measure": 45, "profile": 120, "calibrate": 50, "recalibrate": 50, "map": 40, "chat": 25, "load": 20, "unload": 3, "goal_check": 60, "goal_align": 240, "goal_optimize": 900, "export": 60, "rebuild": 15, "active": 10, "system": 1, "exempt": 10, "goal_as_lever": 10, "drop": 10, "apply_settings": 30, "add_trait": 40, "trait_edit": 15, "preset_load": 5, "reset_chat": 1, "rewind_chat": 1, "chat_pick": 1}
 KEEP_DONE = 60
 
 
