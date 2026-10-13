@@ -275,7 +275,7 @@ class IrisView(QWidget):
 		self.t0 = time.perf_counter()
 		self.az = -0.55
 		self.el = 0.52
-		self.zoom = 1.0
+		self.zoom = 0.75
 		self.spin = 0.035
 		self.drag = None
 		self.hover = -1

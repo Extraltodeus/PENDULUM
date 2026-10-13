@@ -196,6 +196,7 @@ class Engine:
 			"n_ctx": self.n_ctx,
 			"quant": gg.main_quant(),
 			"size": int(self.lib.llama_model_size(model)),
+			"n_params": int(self.lib.llama_model_n_params(model)),
 			"chat_template": not self.template.fallback,
 			"plan": {k: plan.get(k) for k in ("n_gpu_layers", "tensor_split", "lens_device", "spill", "cpu_bytes", "notes", "estimate", "split_mode", "main_gpu", "flash_attn", "kv_type")},
 			"load_seconds": round(time.perf_counter() - started, 1),

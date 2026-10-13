@@ -1931,7 +1931,7 @@ class MainWindow(Frameless, QMainWindow):
 		if not any(use.values()):
 			self.log.add("move at least one lever before exporting", "warn")
 			return
-		from hypno.export import bakeable, export
+		from hypno.export import bakeable, export, model_tag
 		from hypno.lorakeys import arch_ok
 
 		g = self.snap.get("guard") or {}
@@ -1942,7 +1942,7 @@ class MainWindow(Frameless, QMainWindow):
 		rows = [{"name": names.get(t, t) if not t.endswith(GO.LORA) else names.get(GO.base_id(t), t) + " · LoRA", "setting": v, "applied": v * (1.0 if t in free else scale) * float(factors.get(t, 1.0)), "optimized": (self.levers.get(GO.base_id(t)) or {}).get("kind") == "optimized" or GO.base_id(t) in self.lever_table.planned} for t, v in use.items() if v]
 		info = self.snap.get("info") or {}
 		arch = info.get("arch", "")
-		dlg = ExportDialog(rows, arch, bakeable(arch), "_".join(r["name"].lower().replace(" ", "-") for r in rows[:3]), self, arch_ok(arch, info.get("n_expert", 0)))
+		dlg = ExportDialog(rows, model_tag(info), bakeable(arch), "_".join(r["name"].lower().replace(" ", "-") for r in rows[:3]), self, arch_ok(arch, info.get("n_expert", 0)))
 		if not dlg.exec():
 			return
 		name, dose, kind, style, prefix = dlg.values()

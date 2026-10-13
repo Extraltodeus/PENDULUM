@@ -4176,7 +4176,7 @@ class ExportDialog(EvaDialog):
 		self.name = QLineEdit(name)
 		self.name.setFont(theme.mono(9))
 		self.name.setPlaceholderText("persona name (folder under exports)")
-		self.name.setToolTip(f"the model architecture is always put before it: {self.arch}_<name> (unless the name already starts with it)")
+		self.name.setToolTip(f"the model architecture and size are always put before it: {self.arch}_<name> (unless the name already starts with them)")
 		lay.addWidget(self.name)
 		dose_row = QHBoxLayout()
 		dose_row.addWidget(_caption("GLOBAL DOSE"))
@@ -4256,10 +4256,15 @@ class ExportDialog(EvaDialog):
 		lay.addLayout(btns)
 
 	def final_name(self):
-		name, arch = self.name.text().strip(), self.arch
-		if not arch or name.lower() == arch.lower() or name.lower().startswith(arch.lower() + "_"):
-			return name or arch
-		return f"{arch}_{name}" if name else arch
+		name, tag = self.name.text().strip(), self.arch
+		if not tag:
+			return name
+		low, base = name.lower(), tag.split("-")[0].lower()
+		if low == tag.lower() or low.startswith(tag.lower() + "_"):
+			return name
+		if base != tag.lower() and (low == base or low.startswith(base + "_")):
+			name = name[len(base):].lstrip("_")
+		return f"{tag}_{name}" if name else tag
 
 	def _where(self, _t=""):
 		self.where.setText(f"written to {config.EXPORTS_DIR.replace(os.sep, '/')}/{self.final_name()}/ with a manifest (pendulum.json) of the levers, strengths and profiles, a run_llama_server launcher (.bat or .sh) and the LM Studio override (lmstudio_override.txt)")

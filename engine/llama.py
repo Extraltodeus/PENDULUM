@@ -125,6 +125,7 @@ SIGNATURES = {
 	"llama_model_meta_val_str": (c_int32, c_void_p, c_char_p, c_char_p, c_size_t),
 	"llama_model_desc": (c_int32, c_void_p, c_char_p, c_size_t),
 	"llama_model_size": (c_uint64, c_void_p),
+	"llama_model_n_params": (c_uint64, c_void_p),
 	"llama_model_chat_template": (c_char_p, c_void_p, c_char_p),
 	"llama_n_ctx": (c_uint32, c_void_p),
 	"llama_get_memory": (c_void_p, c_void_p),

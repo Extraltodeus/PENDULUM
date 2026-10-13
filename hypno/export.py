@@ -9,6 +9,7 @@ import numpy as np
 import config
 from engine.ggufio import gguf_module
 from engine.llamadist import exe, system
+from engine.stconvert import size_label
 from engine.runtime import LORA
 
 
@@ -204,6 +205,15 @@ def launcher(out_dir, llama_dir, model, flags, notes, n_ctx):
 		f.write("\n".join(lines) + "\n")
 	if not win:
 		os.chmod(path, 0o755)
+
+
+def model_tag(info):
+	arch = (info or {}).get("arch", "") or ""
+	label = (info or {}).get("size_label", "") or ""
+	if not label and (info or {}).get("n_params"):
+		label = size_label(int(info["n_params"]))
+	label = re.sub(r"[^0-9A-Za-z.x]+", "", label.split(",")[0])
+	return f"{arch}-{label}" if arch and label else arch
 
 
 def launcher_name():
