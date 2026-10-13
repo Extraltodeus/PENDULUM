@@ -6,7 +6,7 @@ import time
 from urllib.parse import quote
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QColor, QCursor, QDesktopServices, QFont, QFontMetrics, QFontMetricsF, QImage, QPainter, QPainterPath, QPen, QPolygonF, QTextCharFormat, QTextCursor
+from PySide6.QtGui import QColor, QCursor, QDesktopServices, QFont, QFontMetrics, QFontMetricsF, QIcon, QImage, QPainter, QPixmap, QPainterPath, QPen, QPolygonF, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import QAbstractSpinBox, QApplication, QButtonGroup, QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMenu, QPlainTextEdit, QProxyStyle, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QSlider, QSpinBox, QStyle, QStyledItemDelegate, QTextBrowser, QToolTip, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, QWidgetAction
 
 import config
@@ -4253,10 +4253,75 @@ def _caption(text):
 	return l
 
 
+class ImageList(QListWidget):
+	EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+	THUMB = 64
+
+	def __init__(self, parent=None):
+		super().__init__(parent)
+		self.setViewMode(QListWidget.ViewMode.IconMode)
+		self.setIconSize(QSize(self.THUMB, self.THUMB))
+		self.setGridSize(QSize(self.THUMB + 10, self.THUMB + 10))
+		self.setResizeMode(QListWidget.ResizeMode.Adjust)
+		self.setMovement(QListWidget.Movement.Static)
+		self.setFixedHeight(self.THUMB + 26)
+		self.setAcceptDrops(True)
+		self.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+		self.setToolTip("drop images here, or double-click to pick some · Delete removes the selected ones")
+
+	def paths(self):
+		return [self.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.count())]
+
+	def add(self, paths):
+		have = set(self.paths())
+		for p in paths:
+			p = os.path.normpath(p)
+			if not p.lower().endswith(self.EXT) or p in have or not os.path.isfile(p):
+				continue
+			pm = QPixmap(p)
+			icon = QIcon(pm.scaled(self.THUMB, self.THUMB, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)) if not pm.isNull() else QIcon()
+			it = QListWidgetItem(icon, "")
+			it.setData(Qt.ItemDataRole.UserRole, p)
+			it.setToolTip(p)
+			self.addItem(it)
+			have.add(p)
+
+	def browse(self):
+		files, _f = QFileDialog.getOpenFileNames(self, "Images", "", "Images (*.png *.jpg *.jpeg *.bmp *.gif)")
+		self.add(files)
+
+	def dragEnterEvent(self, e):
+		if e.mimeData().hasUrls():
+			e.acceptProposedAction()
+
+	def dragMoveEvent(self, e):
+		if e.mimeData().hasUrls():
+			e.acceptProposedAction()
+
+	def dropEvent(self, e):
+		self.add([u.toLocalFile() for u in e.mimeData().urls() if u.isLocalFile()])
+		e.acceptProposedAction()
+
+	def mouseDoubleClickEvent(self, e):
+		if self.itemAt(e.position().toPoint()) is None:
+			self.browse()
+			return
+		super().mouseDoubleClickEvent(e)
+
+	def keyPressEvent(self, e):
+		if e.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+			for it in self.selectedItems():
+				self.takeItem(self.row(it))
+			return
+		super().keyPressEvent(e)
+
+
 class TraitDialog(EvaDialog):
 	MODES = {"new": ("New lever", "CREATE"), "edit": ("Edit lever", "SAVE"), "duplicate": ("Duplicate lever", "CREATE")}
+	images_requested = Signal(object, object, str)
+	WHERE = (("after", "the mood", "what the model reads right after the image, while the question about its feeling is asked: moods and qualities (ominous, serene…)"), ("image", "the content", "what the model reads in the image tokens themselves: what is shown (skull, petals…)"), ("both", "both", "mood and content, half each"))
 
-	def __init__(self, parent=None, trait=None, mode="new"):
+	def __init__(self, parent=None, trait=None, mode="new", vision=None):
 		super().__init__(parent)
 		title, verb = self.MODES.get(mode, self.MODES["new"])
 		self.mode = mode
@@ -4270,6 +4335,18 @@ class TraitDialog(EvaDialog):
 		if mode == "duplicate" and t.get("name"):
 			t["name"] = f"{t['name']} copy"
 		self.fields = {}
+		self.switch = SegSwitch((("words", "WORDS", "name, poles, words and characters of the lever"), ("images", "IMAGES", "find the words of each side in images: the lens reads what the model sees in them")))
+		self.switch.set_value("words")
+		self.switch.picked.connect(self._page)
+		lay.addWidget(self.switch)
+		self.words_page = QWidget()
+		page = QVBoxLayout(self.words_page)
+		page.setContentsMargins(0, 0, 0, 0)
+		page.setSpacing(3)
+		lay.addWidget(self.words_page)
+		self.images_page = self._images_page(vision or {})
+		self.images_page.hide()
+		lay.addWidget(self.images_page)
 		for key, label, ph, tip in TRAIT_FIELDS:
 			l = QLabel(label)
 			theme.tag_font(l, 7.5)
@@ -4281,8 +4358,8 @@ class TraitDialog(EvaDialog):
 			e.setToolTip(tip)
 			hscroll(e)
 			l.setToolTip(tip)
-			lay.addWidget(l)
-			lay.addWidget(e)
+			page.addWidget(l)
+			page.addWidget(e)
 			self.fields[key] = e
 		self.needed = ("name",) if t.get("lever_only") and not t.get("no_lexicon") else NEEDED
 		if t.get("no_lexicon"):
@@ -4305,6 +4382,91 @@ class TraitDialog(EvaDialog):
 		row.addWidget(cancel)
 		row.addWidget(ok)
 		lay.addLayout(row)
+
+	def _images_page(self, vision):
+		w = QWidget()
+		v = QVBoxLayout(w)
+		v.setContentsMargins(0, 0, 0, 0)
+		v.setSpacing(3)
+		mm = vision.get("mmproj", "")
+		v.addWidget(_note(f"vision: {mm}" if mm else (vision.get("why") or "load a model that has an mmproj*.gguf next to it to read images"), theme.DIM if mm else theme.WARN))
+		self.img_lists = {}
+		for pole, cap in (("plus", "PLUS IMAGES"), ("minus", "MINUS IMAGES")):
+			row = QHBoxLayout()
+			l = QLabel(cap)
+			theme.tag_font(l, 7.5)
+			l.setStyleSheet(f"color: {theme.MUTED}; padding-top: 4px;")
+			row.addWidget(l)
+			row.addStretch(1)
+			lst = ImageList()
+			add = button("ADD…", "pick images for this side (or drop them in the box)")
+			add.clicked.connect(lst.browse)
+			clr = button("CLEAR", "remove every image of this side")
+			clr.clicked.connect(lst.clear)
+			row.addWidget(add)
+			row.addWidget(clr)
+			v.addLayout(row)
+			v.addWidget(lst)
+			self.img_lists[pole] = lst
+		row = QHBoxLayout()
+		cap = QLabel("READ")
+		theme.tag_font(cap, 7.5)
+		cap.setStyleSheet(f"color: {theme.MUTED};")
+		row.addWidget(cap)
+		self.where = QComboBox()
+		for key, label, tip in self.WHERE:
+			self.where.addItem(label, key)
+			self.where.setItemData(self.where.count() - 1, tip, Qt.ItemDataRole.ToolTipRole)
+		row.addWidget(self.where)
+		row.addStretch(1)
+		self.b_read = button("READ THE IMAGES", "the model looks at each image (no text is written): the lens reads what it sees in the workspace band\nthe words that set one side apart from the other go to PLUS WORDS / MINUS WORDS (added to what is there)\none side only: compared with a neutral text", accent=True)
+		self.b_read.setEnabled(bool(mm))
+		self.b_read.clicked.connect(self._read_images)
+		row.addWidget(self.b_read)
+		v.addLayout(row)
+		self.img_note = _note("", theme.DIM)
+		self.img_note.setWordWrap(True)
+		v.addWidget(self.img_note)
+		return w
+
+	def _page(self, key):
+		self.words_page.setVisible(key == "words")
+		self.images_page.setVisible(key == "images")
+		self.switch.set_value(key)
+		self.adjustSize()
+
+	def _read_images(self):
+		plus, minus = self.img_lists["plus"].paths(), self.img_lists["minus"].paths()
+		if not plus and not minus:
+			self.img_note.setText("add images to at least one side")
+			self.img_note.setStyleSheet(f"color: {theme.WARN};")
+			return
+		self.b_read.setEnabled(False)
+		self.img_note.setStyleSheet(f"color: {theme.DIM};")
+		self.img_note.setText(f"reading {len(plus)} + {len(minus)} images… (TO DO)")
+		self.images_requested.emit(plus, minus, self.where.currentData() or "after")
+
+	def set_image_words(self, res):
+		self.b_read.setEnabled(True)
+		added = {}
+		for pole in ("plus", "minus"):
+			e = self.fields[f"seeds_{pole}"]
+			have = [w.strip() for w in e.text().split(",") if w.strip()]
+			low = {w.lower() for w in have}
+			new = [w for w in res.get(pole) or [] if w.lower() not in low]
+			e.setText(", ".join(have + new))
+			e.setCursorPosition(0)
+			added[pole] = new
+		self.img_note.setStyleSheet(f"color: {theme.DIM};")
+		self.img_note.setText(f"+{len(added['plus'])} plus words, +{len(added['minus'])} minus words from the images · edit them in WORDS")
+		rows = [f"{'+' if pole == 'plus' else '−'} {r['image']} ({r['tokens']} tokens): {', '.join(r['top'])}" for pole in ("plus", "minus") for r in (res.get("per_image") or {}).get(pole, [])]
+		self.img_note.setToolTip("what the lens reads most in each image:\n" + "\n".join(rows) if rows else "")
+		self._page("words")
+
+	def image_failed(self, text):
+		self.b_read.setEnabled(True)
+		self.img_note.setStyleSheet(f"color: {theme.WARN};")
+		self.img_note.setText(f"could not read the images: {text}" if text else "reading the images was stopped")
 
 	def _ok(self):
 		v = self.data()

@@ -24,6 +24,8 @@ from lens.match import best, lens_vram, score as lens_score
 from lens.readout import Readout, selfcheck
 from lens.vocab import masks
 from lens.workspace import analyze, detect_band
+from engine.mtmd import Vision, find_mmproj
+from persona import imagewords as IW
 from persona import levers as LV
 from persona.coherence import CALIB_TARGET, EXTRA_DEFAULTS as COH_EXTRA, GUARD_MODES, LEGACY_MODES, JUDGE_MIN_AUC, Coherence, Judge, Stopped, check, judge_key, question_list, threshold
 from persona import goals as GO
@@ -1043,6 +1045,64 @@ class Session:
 		except Stopped:
 			self.strengths = prev
 			raise
+
+	def mmproj(self):
+		return find_mmproj((self.info or {}).get("path", "")) if self.engine is not None and self.engine.loaded else ""
+
+	def image_words(self, plus, minus, where="after", stop=None):
+		if self.engine is None or not self.engine.loaded or self.readout is None:
+			raise RuntimeError("load a model first")
+		mm = self.mmproj()
+		if not mm:
+			raise RuntimeError("no mmproj*.gguf next to the model: this model cannot see images")
+		if not plus and not minus:
+			raise RuntimeError("add images to at least one side")
+		lo, hi = self.band or (0, self.engine.n_layer - 1)
+		layers = list(range(lo, hi + 1))
+		mask = self.english.to(self.readout.device)
+		total = len(plus) + len(minus) + 1
+		done = 0
+		self.engine.set_steering(None)
+		self.log(f"reading {len(plus)} + {len(minus)} images through {os.path.basename(mm)} (lens on L{lo}–L{hi}, {where} tokens)")
+		vis = Vision(self.engine, mm)
+		profiles, tops = {}, {}
+		try:
+			for pole, paths in (("plus", plus), ("minus", minus)):
+				acc = None
+				for path in paths:
+					check(stop)
+					caps, spans = vis.read(path, IW.PROMPT, layers)
+					if where == "both":
+						p = (IW.profile(self.readout, caps, IW.rows_of(spans, "image"), layers) + IW.profile(self.readout, caps, IW.rows_of(spans, "after"), layers)) / 2
+					else:
+						p = IW.profile(self.readout, caps, IW.rows_of(spans, where), layers)
+					tops.setdefault(pole, []).append({"image": os.path.basename(path), "tokens": sum(n for k, _a, n in spans if k == "image"), "top": IW.top_tokens(p, self.strings, mask)})
+					acc = p if acc is None else acc + p
+					done += 1
+					self.emit("progress", {"task": "image_words", "value": done / total})
+				profiles[pole] = acc / len(paths) if acc is not None else None
+			if profiles["plus"] is None or profiles["minus"] is None:
+				check(stop)
+				toks = self.engine.chat_tokens([{"role": "user", "content": IW.PROMPT}])
+				self.engine.reset()
+				self.engine.set_capture(layers)
+				try:
+					self.engine.decode(toks)
+					caps = self.engine.pop_capture()
+				finally:
+					self.engine.set_capture(None)
+					self.engine.reset()
+				neutral = IW.profile(self.readout, caps, list(range(len(toks))), layers)
+				profiles = {k: (v if v is not None else neutral) for k, v in profiles.items()}
+		finally:
+			vis.close()
+			self.resteer()
+		words = IW.contrast(profiles["plus"], profiles["minus"], self.strings, mask)
+		words = {k: (v if (plus if k == "plus" else minus) else []) for k, v in words.items()}
+		self.log(f"image words · + {', '.join(words['plus'][:8])} · − {', '.join(words['minus'][:8])}", "ok")
+		res = {"plus": words["plus"], "minus": words["minus"], "where": where, "per_image": tops, "mmproj": os.path.basename(mm)}
+		self.emit("image_words", res)
+		return res
 
 	def resteer(self):
 		if self.engine is not None and self.engine.loaded:

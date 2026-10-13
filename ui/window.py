@@ -49,9 +49,9 @@ UNDO_MAX = 60
 PROFILE_TIP = "measure the personality\nwith levers set: a quick measure of the steered model (6 prompts, informative: a chat sent meanwhile goes first)\nwithout levers: the full baseline profile\nShift+click: the full profile of the steered model · right-click: every choice"
 SKIP_JUDGE = ("levers", "judge", "exempt", "apply_settings", "active")
 STAGE_OF = {"levers_as_set": "LEVERS", "align": "LEVERS", "load": "MODEL", "unload": "MODEL", "map": "WORKSPACE", "profile": "PROFILE", "measure": "PROFILE", "read_scale": "PROFILE", "levers": "LEVERS", "calibrate": "LEVERS", "add_trait": "LEVERS", "chat": "DIALOGUE", "goal_check": "PROFILE", "goal_align": "LEVERS", "goal_optimize": "LEVERS", "goal_save": "LEVERS", "goal_delete": "LEVERS", "recalibrate": "LEVERS", "trait_edit": "LEVERS", "load_options": "MODEL", "exempt": "LEVERS", "goal_as_lever": "LEVERS", "active": "LEVERS", "judge": "LEVERS"}
-JOB_LABELS = {"levers_as_set": "apply the levers as set (judgement skipped)", "judge": "judge the changed levers", "rebuild": "rebuild the lever list", "drop": "drop an outdated goal lever", "apply_settings": "apply the new settings to the levers", "load": "load a model", "unload": "unload the model", "catalog": "scan models and lenses", "plan": "plan the VRAM placement", "map": "re-map the workspace band", "profile": "full personality profile", "measure": "measure the steered model (quick profile)", "read_scale": "measure the reading scale of new levers (READ + WRITE)", "levers": "apply the lever settings", "calibrate": "calibrate levers", "recalibrate": "recalibrate levers", "add_trait": "build a new lever", "trait_edit": "save a lever", "load_options": "save the load options", "system": "set the system prompt", "chat": "reply in the dialogue", "export": "export", "goal_optimize": "TRAIN a goal", "goal_check": "check a goal", "goal_align": "align on a goal", "goal_save": "save a goal", "goal_delete": "delete a goal", "prefs": "save a setting", "settings": "apply the settings", "reset_chat": "clear the dialogue", "rewind_chat": "take back the last message", "chat_pick": "use the reply shown in the dialogue", "align": "align the levers on the targets", "preset_save": "save a preset", "preset_load": "load a preset", "exempt": "change a guard exemption", "goal_as_lever": "make a lever from a goal", "active": "set the active levers", "shot": "screenshot"}
+JOB_LABELS = {"levers_as_set": "apply the levers as set (judgement skipped)", "judge": "judge the changed levers", "rebuild": "rebuild the lever list", "drop": "drop an outdated goal lever", "apply_settings": "apply the new settings to the levers", "load": "load a model", "unload": "unload the model", "catalog": "scan models and lenses", "plan": "plan the VRAM placement", "map": "re-map the workspace band", "profile": "full personality profile", "measure": "measure the steered model (quick profile)", "read_scale": "measure the reading scale of new levers (READ + WRITE)", "levers": "apply the lever settings", "calibrate": "calibrate levers", "recalibrate": "recalibrate levers", "add_trait": "build a new lever", "trait_edit": "save a lever", "load_options": "save the load options", "system": "set the system prompt", "chat": "reply in the dialogue", "export": "export", "goal_optimize": "TRAIN a goal", "goal_check": "check a goal", "goal_align": "align on a goal", "goal_save": "save a goal", "goal_delete": "delete a goal", "prefs": "save a setting", "settings": "apply the settings", "reset_chat": "clear the dialogue", "image_words": "read images for lever words", "rewind_chat": "take back the last message", "chat_pick": "use the reply shown in the dialogue", "align": "align the levers on the targets", "preset_save": "save a preset", "preset_load": "load a preset", "exempt": "change a guard exemption", "goal_as_lever": "make a lever from a goal", "active": "set the active levers", "shot": "screenshot"}
 READY_AFTER = {"levers_as_set": "LEVERS APPLIED", "judge": "LEVERS JUDGED", "align": "TARGETS ALIGNED", "load": "MODEL LOADED", "levers": "LEVERS APPLIED", "calibrate": "LEVERS CALIBRATED", "recalibrate": "LEVERS CALIBRATED", "exempt": "LEVERS APPLIED", "profile": "PROFILE MEASURED", "map": "WORKSPACE MAPPED", "settings": "SETTINGS APPLIED", "add_trait": "NEW LEVER BUILT", "trait_edit": "LEVERS UPDATED", "goal_align": "GOAL ALIGNED", "goal_optimize": "GOAL TRAINED", "active": "ACTIVE LEVERS SET"}
-TITLES = {"levers_as_set": "APPLYING LEVERS AS SET", "judge": "JUDGING THE LEVERS", "guard": "CHECKING COHERENCE", "rebuild": "REBUILDING THE LEVER LIST", "drop": "DROPPING A GOAL LEVER", "apply_settings": "APPLYING THE SETTINGS", "load": "LOADING", "convert": "CONVERTING TO GGUF", "lens download": "DOWNLOADING THE LENS", "workspace": "MAPPING THE WORKSPACE", "profile": "PROFILING THE PERSONALITY", "map": "MAPPING THE WORKSPACE", "measure": "MEASURING THE STEERED MODEL", "read_scale": "SCALING THE READING", "levers": "APPLYING LEVERS", "calibrate": "CALIBRATING LEVERS", "add_trait": "BUILDING THE NEW LEVER", "chat": "GENERATING", "plan": "PLANNING", "catalog": "SCANNING MODELS AND LENSES", "export": "EXPORTING", "unload": "UNLOADING", "reset_chat": "CLEARING THE DIALOGUE", "rewind_chat": "TAKING BACK THE LAST MESSAGE", "chat_pick": "KEEPING THE REPLY SHOWN", "align": "ALIGNING ON THE TARGETS", "preset_save": "SAVING THE PRESET", "preset_load": "LOADING THE PRESET", "system": "SETTING THE SYSTEM PROMPT", "fit": "TRAINING A LENS", "goal_check": "CHECKING THE GOAL", "goal_align": "ALIGNING ON THE GOAL", "goal_optimize": "TRAINING THE GOAL LEVER", "goal_save": "SAVING THE GOAL", "goal_delete": "DELETING THE GOAL", "recalibrate": "RECALIBRATING LEVERS", "trait_edit": "EDITING LEVERS", "prefs": "SAVING SETTINGS", "settings": "APPLYING THE SETTINGS", "load_options": "SAVING LOAD OPTIONS", "exempt": "APPLYING LEVERS", "goal_as_lever": "MAKING A LEVER FROM THE GOAL", "active": "SETTING THE ACTIVE LEVERS"}
+TITLES = {"levers_as_set": "APPLYING LEVERS AS SET", "judge": "JUDGING THE LEVERS", "guard": "CHECKING COHERENCE", "rebuild": "REBUILDING THE LEVER LIST", "drop": "DROPPING A GOAL LEVER", "apply_settings": "APPLYING THE SETTINGS", "load": "LOADING", "convert": "CONVERTING TO GGUF", "lens download": "DOWNLOADING THE LENS", "workspace": "MAPPING THE WORKSPACE", "profile": "PROFILING THE PERSONALITY", "map": "MAPPING THE WORKSPACE", "measure": "MEASURING THE STEERED MODEL", "read_scale": "SCALING THE READING", "levers": "APPLYING LEVERS", "calibrate": "CALIBRATING LEVERS", "add_trait": "BUILDING THE NEW LEVER", "chat": "GENERATING", "plan": "PLANNING", "catalog": "SCANNING MODELS AND LENSES", "export": "EXPORTING", "unload": "UNLOADING", "reset_chat": "CLEARING THE DIALOGUE", "image_words": "READING THE IMAGES", "rewind_chat": "TAKING BACK THE LAST MESSAGE", "chat_pick": "KEEPING THE REPLY SHOWN", "align": "ALIGNING ON THE TARGETS", "preset_save": "SAVING THE PRESET", "preset_load": "LOADING THE PRESET", "system": "SETTING THE SYSTEM PROMPT", "fit": "TRAINING A LENS", "goal_check": "CHECKING THE GOAL", "goal_align": "ALIGNING ON THE GOAL", "goal_optimize": "TRAINING THE GOAL LEVER", "goal_save": "SAVING THE GOAL", "goal_delete": "DELETING THE GOAL", "recalibrate": "RECALIBRATING LEVERS", "trait_edit": "EDITING LEVERS", "prefs": "SAVING SETTINGS", "settings": "APPLYING THE SETTINGS", "load_options": "SAVING LOAD OPTIONS", "exempt": "APPLYING LEVERS", "goal_as_lever": "MAKING A LEVER FROM THE GOAL", "active": "SETTING THE ACTIVE LEVERS"}
 
 
 def dark_title(hwnd):
@@ -971,6 +971,8 @@ class MainWindow(Frameless, QMainWindow):
 		if it is None:
 			return
 		p["params"] = it["params"]
+		if it["kind"] == "image_words" and getattr(self, "trait_dlg", None) is not None and (kind == "error" or p.get("stopped")):
+			self.trait_dlg.image_failed(p.get("text", "") if kind == "error" else "")
 		if kind == "error":
 			plan.finish(it, "failed", p.get("text", ""))
 			if it["kind"] == "load":
@@ -1778,9 +1780,25 @@ class MainWindow(Frameless, QMainWindow):
 			self.run_align()
 		self.submit_levers({t: 0.0 for t in set(self.strengths) | set(self.applied)})
 
+	def trait_dialog(self, t=None, mode="new"):
+		from engine.mtmd import find_mmproj
+		loaded = bool(self.snap.get("loaded"))
+		mm = find_mmproj(self.model_path()) if loaded else ""
+		why = "" if mm else ("load a model first: its mmproj*.gguf (next to it) lets it see images" if not loaded else "this model has no mmproj*.gguf next to it: it cannot see images")
+		dlg = TraitDialog(self, t, mode, {"mmproj": os.path.basename(mm) if mm else "", "why": why})
+		dlg.images_requested.connect(self.read_image_words)
+		self.trait_dlg = dlg
+		try:
+			return dlg if dlg.exec() else None
+		finally:
+			self.trait_dlg = None
+
+	def read_image_words(self, plus, minus, where):
+		self.plan_add("image_words", f"read {len(plus) + len(minus)} images for lever words", lambda s, p=list(plus), m=list(minus), w=where: s.image_words(p, m, w, stop=self.worker.stop), go=True)
+
 	def add_trait(self):
-		dlg = TraitDialog(self)
-		if dlg.exec():
+		dlg = self.trait_dialog()
+		if dlg:
 			v = dlg.data()
 			self.plan_add("add_trait", f"build the lever {v['name']}", lambda s, v=v: s.add_trait(v["name"], v["seeds_plus"], v["seeds_minus"], v["plus"], v["minus"], v["desc_plus"], v["desc_minus"]))
 
@@ -1791,16 +1809,16 @@ class MainWindow(Frameless, QMainWindow):
 		t = self.trait_row(tid)
 		if t is None:
 			return
-		dlg = TraitDialog(self, t, "edit")
-		if dlg.exec():
+		dlg = self.trait_dialog(t, "edit")
+		if dlg:
 			self.plan_add("trait_edit", f"save the lever {t['name']}", lambda s, i=tid, v=dlg.data(): s.update_trait(i, v))
 
 	def duplicate_trait(self, tid):
 		t = self.trait_row(tid)
 		if t is None:
 			return
-		dlg = TraitDialog(self, t, "duplicate")
-		if dlg.exec():
+		dlg = self.trait_dialog(t, "duplicate")
+		if dlg:
 			self.plan_add("trait_edit", f"duplicate the lever {t['name']}", lambda s, i=tid, v=dlg.data(): s.duplicate_trait(i, v))
 
 	def delete_trait(self, tid):
@@ -2653,6 +2671,10 @@ class MainWindow(Frameless, QMainWindow):
 			return
 		if kind == "chat_reset":
 			self.heat.clear()
+			return
+		if kind == "image_words":
+			if getattr(self, "trait_dlg", None) is not None:
+				self.trait_dlg.set_image_words(p)
 			return
 
 	def on_goal_event(self, kind, p):
