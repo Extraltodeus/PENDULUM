@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -68,6 +69,39 @@ def aggregate(caps, rows, layers):
 		h = caps[l][[r for r in rows if r < len(caps[l])]].astype(np.float64)
 		out["sums"][l] = h.sum(0)
 		out["norms"][l] = float(np.linalg.norm(h, axis=1).sum())
+	return out
+
+
+def save_reads(path, entries):
+	if not entries:
+		return
+	os.makedirs(os.path.dirname(path), exist_ok=True)
+	arrays, meta = {}, []
+	for i, e in enumerate(entries):
+		layers = sorted(e["agg"]["sums"])
+		arrays[f"s{i}"] = np.stack([e["agg"]["sums"][l] for l in layers]).astype(np.float32)
+		arrays[f"n{i}"] = np.array([e["agg"]["norms"][l] for l in layers], dtype=np.float64)
+		meta.append({"pole": e["pole"], "name": e["name"], "size": e["size"], "mtime": e["mtime"], "rows": e["agg"]["n"], "layers": layers})
+	arrays["meta"] = np.array(json.dumps(meta))
+	tmp = path + ".tmp"
+	with open(tmp, "wb") as f:
+		np.savez_compressed(f, **arrays)
+	os.replace(tmp, path)
+
+
+def load_reads(path):
+	if not os.path.isfile(path):
+		return {}
+	out = {}
+	try:
+		with np.load(path) as z:
+			meta = json.loads(str(z["meta"]))
+			for i, m in enumerate(meta):
+				s, n = z[f"s{i}"], z[f"n{i}"]
+				agg = {"sums": {l: s[k].astype(np.float64) for k, l in enumerate(m["layers"])}, "norms": {l: float(n[k]) for k, l in enumerate(m["layers"])}, "n": m["rows"]}
+				out[(m["pole"], m["name"])] = dict(m, agg=agg)
+	except Exception:
+		return {}
 	return out
 
 

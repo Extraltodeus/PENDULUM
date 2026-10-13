@@ -18,6 +18,7 @@ GROUPS = (
 STATE_FILES = (
 	(re.compile(r"^state\.json$"), "lever settings, profile, targets and options of this model"),
 	(re.compile(r"^levers\.npz$"), "built lever directions"),
+	(re.compile(r"^image_reads$"), "what this model saw in the images of the image levers (rebuilds them without the images)"),
 	(re.compile(r"^ref_pmean\.pt$"), "neutral reference of the profile"),
 	(re.compile(r"^teach_.+\.pt$"), "goal training answers (TRAIN reuses them when nothing changed)"),
 	(re.compile(r"^goal_.+\.lora\.gguf$"), "LoRA adapter trained by TRAIN"),

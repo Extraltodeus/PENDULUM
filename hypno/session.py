@@ -1056,14 +1056,20 @@ class Session:
 		if not mm:
 			raise RuntimeError(f"'{trait['name']}' is made from images: this model has no mmproj*.gguf next to it to see them")
 		plus, minus = IW.image_paths(trait, "plus"), IW.image_paths(trait, "minus")
-		missing = [p for p in plus + minus if not os.path.isfile(p)]
-		if missing:
-			raise RuntimeError(f"'{trait['name']}': {len(missing)} image(s) missing in {os.path.dirname(missing[0])}")
 		layers = IW.extract_layers(self.band, self.engine.n_layer)
+		saved = IW.load_reads(self.image_reads_path(trait["id"]))
+		where = {p: (pole, os.path.basename(p)) for pole, paths in (("plus", plus), ("minus", minus)) for p in paths}
+		missing = [p for p in plus + minus if not os.path.isfile(p) and not self.saved_read(saved, where[p], p, layers)]
+		if missing:
+			raise RuntimeError(f"'{trait['name']}': {len(missing)} image(s) missing in {os.path.dirname(missing[0])}, never read on this model")
 		vis, hits = [None], [0]
 
 		def read(path):
-			agg = self.image_cache.get(self.image_key(path, layers))
+			agg = self.image_cache.get(self.image_key(path, layers)) if os.path.isfile(path) else None
+			if agg is None:
+				agg = self.saved_read(saved, where[path], path, layers)
+				if agg is not None and os.path.isfile(path):
+					self.keep_image(path, layers, agg)
 			if agg is not None:
 				hits[0] += 1
 				return agg
@@ -1080,9 +1086,43 @@ class Session:
 		finally:
 			if vis[0] is not None:
 				vis[0].close()
+		self.save_image_reads(trait, layers, saved)
 		n = len(plus) + len(minus)
-		self.log(f"'{trait['name']}' from images: " + (f"{n - hits[0]} read through {os.path.basename(mm)}" if n > hits[0] else "nothing to read again") + (f", {hits[0]} reused from when it was saved" if hits[0] else ""))
+		self.log(f"'{trait['name']}' from images: " + (f"{n - hits[0]} read through {os.path.basename(mm)}" if n > hits[0] else "nothing to read again") + (f", {hits[0]} reused from earlier readings" if hits[0] else ""))
 		return ex
+
+	def image_reads_path(self, tid):
+		return os.path.join(self.state_dir(), "image_reads", f"{tid}.npz")
+
+	def saved_read(self, saved, ref, path, layers):
+		e = saved.get(ref)
+		if e is None or e["layers"] != list(layers):
+			return None
+		if os.path.isfile(path):
+			st = os.stat(path)
+			if st.st_size != e["size"] or st.st_mtime_ns != e["mtime"]:
+				return None
+		return e["agg"]
+
+	def save_image_reads(self, trait, layers, saved=None):
+		saved = saved if saved is not None else IW.load_reads(self.image_reads_path(trait["id"]))
+		entries = []
+		for pole in ("plus", "minus"):
+			for path in IW.image_paths(trait, pole):
+				name = os.path.basename(path)
+				if os.path.isfile(path):
+					agg = self.image_cache.get(self.image_key(path, layers))
+					st = os.stat(path)
+					if agg is not None:
+						entries.append({"pole": pole, "name": name, "size": st.st_size, "mtime": st.st_mtime_ns, "agg": agg})
+						continue
+				e = saved.get((pole, name))
+				if e is not None and e["layers"] == list(layers):
+					entries.append({k: e[k] for k in ("pole", "name", "size", "mtime")} | {"agg": e["agg"]})
+		try:
+			IW.save_reads(self.image_reads_path(trait["id"]), entries)
+		except OSError as exc:
+			self.log(f"'{trait['name']}': its image readings could not be saved ({exc})", "warn")
 
 	def image_key(self, path, layers):
 		st = os.stat(path)
@@ -1715,11 +1755,12 @@ class Session:
 			save_overrides(ov)
 			t = {**base, **e}
 		else:
+			img = bool(values.get("images_plus") or values.get("images_minus"))
 			for k in ("name", "plus", "minus", "desc_plus", "desc_minus"):
-				if values.get(k) is not None:
+				if values.get(k) is not None and (k == "name" or not img):
 					t[k] = str(values[k]).strip()
 			for k in ("seeds_plus", "seeds_minus"):
-				if values.get(k) is not None:
+				if values.get(k) is not None and not img:
 					t[k] = [s.strip() for s in values[k] if s.strip()]
 			self.set_images(t, values)
 			save_custom(custom)
@@ -1772,9 +1813,13 @@ class Session:
 		for k in ("desc_plus", "desc_minus", "system_plus", "system_minus", "prompts"):
 			t.pop(k, None)
 		words = {"plus": [], "minus": []}
+		if not all(os.path.isfile(p) for pole in ("plus", "minus") for p in IW.image_paths(t, pole)):
+			self.log(f"'{t['name']}': some of its images are gone, its words are kept as they were", "warn")
+			return
 		if self.mmproj() and self.readout is not None:
 			try:
 				words = self.image_words(IW.image_paths(t, "plus"), IW.image_paths(t, "minus"), "after")
+				self.save_image_reads(t, IW.extract_layers(self.band or (0, self.engine.n_layer - 1), self.engine.n_layer))
 			except Exception as exc:
 				self.log(f"'{t['name']}': the words of its images could not be read ({exc}): it steers without being measured", "warn")
 		else:
