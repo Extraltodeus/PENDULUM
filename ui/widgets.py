@@ -121,6 +121,36 @@ def menu_title(menu, text):
 	return act
 
 
+class HScroll(QObject):
+	STEP = 6
+
+	def eventFilter(self, obj, ev):
+		if ev.type() != QEvent.Type.Wheel or not isinstance(obj, QLineEdit):
+			return False
+		d = ev.angleDelta()
+		step = d.x() or (d.y() if ev.modifiers() & Qt.KeyboardModifier.ShiftModifier else 0)
+		if not step:
+			return False
+		if not obj.hasFocus():
+			return False
+		r = obj.contentsRect()
+		y = r.center().y()
+		if step < 0:
+			obj.setCursorPosition(min(len(obj.text()), obj.cursorPositionAt(QPoint(r.right() - 2, y)) + self.STEP))
+		else:
+			obj.setCursorPosition(max(0, obj.cursorPositionAt(QPoint(r.left() + 2, y)) - self.STEP))
+		return True
+
+
+def hscroll(edit):
+	f = getattr(hscroll, "filter", None)
+	if f is None:
+		f = hscroll.filter = HScroll(QApplication.instance())
+	edit.installEventFilter(f)
+	edit.setToolTip((edit.toolTip() + "\n" if edit.toolTip() else "") + "Shift+wheel: scroll the text sideways")
+	return edit
+
+
 class StepSlider(QSlider):
 	def __init__(self, step=1, parent=None):
 		super().__init__(Qt.Orientation.Horizontal, parent)
@@ -4131,6 +4161,7 @@ class TraitDialog(EvaDialog):
 			e.setFont(theme.mono(9))
 			e.setPlaceholderText(ph)
 			e.setToolTip(tip)
+			hscroll(e)
 			l.setToolTip(tip)
 			lay.addWidget(l)
 			lay.addWidget(e)
