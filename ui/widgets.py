@@ -2842,6 +2842,12 @@ class ChatPanel(QWidget):
 			self.meta.setText(f"{stats.get('tokens', 0)} tok · {stats.get('tps', 0)} tok/s · prompt {stats.get('prompt_tokens', 0)} tok")
 
 
+def vision_tag(m):
+	if not m.get("mmproj"):
+		return ""
+	return "VISION*" if m.get("mmproj_choice") else "VISION"
+
+
 class ModelDelegate(QStyledItemDelegate):
 	def paint_nerv(self, p, opt, m):
 		p.save()
@@ -2859,7 +2865,17 @@ class ModelDelegate(QStyledItemDelegate):
 		p.drawText(QPointF(r.x() + 10, r.y() + 17), eva.elide(nf, m.get("label") or m.get("file", "?"), r.width() - 34))
 		p.setFont(mf)
 		p.setPen(theme.qc(theme.MUTED))
-		p.drawText(QPointF(r.x() + 10, r.y() + 32), f"{m.get('arch', '?')} · {m.get('size_label') or '?'} · {m.get('quant', '?')} · {m.get('size', 0) / 2**30:.1f} GB" + (f" · MoE×{m['n_expert']}" if m.get("n_expert") else ""))
+		meta = f"{m.get('arch', '?')} · {m.get('size_label') or '?'} · {m.get('quant', '?')} · {m.get('size', 0) / 2**30:.1f} GB" + (f" · MoE×{m['n_expert']}" if m.get("n_expert") else "")
+		vis = vision_tag(m)
+		vw = eva.text_w(eva.font(10, 700), vis) + 10 if vis else 0
+		p.drawText(QPointF(r.x() + 10, r.y() + 32), eva.elide(mf, meta, r.width() - 24 - vw))
+		if vis:
+			vf = eva.font(10, 700)
+			box = QRectF(r.right() - vw - 8, r.y() + 22, vw, 13)
+			eva.box(p, box, theme.COOL, 220, 1.0)
+			p.setFont(vf)
+			p.setPen(eva.col(theme.COOL))
+			p.drawText(box, Qt.AlignmentFlag.AlignCenter, vis)
 		lens = m.get("lens_source")
 		if lens:
 			sq = QRectF(r.right() - 16, r.y() + 8, 7, 7)
@@ -2892,7 +2908,12 @@ class ModelDelegate(QStyledItemDelegate):
 		p.setFont(theme.mono(7.5))
 		p.setPen(theme.qc(theme.MUTED))
 		meta = f"{m.get('arch', '?')} · {m.get('size_label') or '?'} · {m.get('quant', '?')} · {m.get('size', 0) / 2**30:.1f} GB" + (f" · MoE×{m['n_expert']}" if m.get("n_expert") else "")
-		p.drawText(QPointF(r.x() + 10, r.y() + 31), meta)
+		vis = vision_tag(m)
+		vw = p.fontMetrics().horizontalAdvance(vis) + 8 if vis else 0
+		p.drawText(QPointF(r.x() + 10, r.y() + 31), p.fontMetrics().elidedText(meta, Qt.TextElideMode.ElideRight, int(r.width() - 24 - vw)))
+		if vis:
+			p.setPen(theme.qc(theme.COOL))
+			p.drawText(QPointF(r.right() - vw - 4, r.y() + 31), vis)
 		lens = m.get("lens_source")
 		if lens:
 			c = QPointF(r.right() - 12, r.y() + 12)
@@ -3180,6 +3201,7 @@ class ModelDrawer(QWidget):
 	ctx_changed = Signal(int)
 	options_changed = Signal(str, object, bool)
 	base_requested = Signal(object)
+	vision_set = Signal(str, str)
 	keep_changed = Signal(str)
 
 	def __init__(self, parent=None):
@@ -3290,7 +3312,7 @@ class ModelDrawer(QWidget):
 			it = QListWidgetItem()
 			it.setData(Qt.ItemDataRole.UserRole, m)
 			src = (f"{m['source']}\nconverted → {m['path']}" if m.get("source") else (f"{m['path']}\nsafetensors: converted to GGUF at the first LOAD" if m.get("convert") else m["path"])) + (f"\nconfig + tokenizer: {m['ref']}" if m.get("kind") == "file" and m.get("ref") else ("\nno base model known: right-click → BASE MODEL…" if m.get("kind") == "file" else ""))
-			it.setToolTip(f"{src}\n{m.get('arch')} · {int(m.get('n_layer') or 0) - int(m.get('n_nextn') or 0)} layers · d={m.get('n_embd')} · ctx {m.get('n_ctx_train')}\nlens: " + (f"{lens['label']} ({lens['source']})" if lens else "none found (logit lens)"))
+			it.setToolTip(f"{src}\n{m.get('arch')} · {int(m.get('n_layer') or 0) - int(m.get('n_nextn') or 0)} layers · d={m.get('n_embd')} · ctx {m.get('n_ctx_train')}\nlens: " + (f"{lens['label']} ({lens['source']})" if lens else "none found (logit lens)") + ("" if m.get("convert") else "\nvision: " + (os.path.basename(m["mmproj"]) + (" (chosen)" if m.get("mmproj_choice") else " (found next to it)") if m.get("mmproj") else ("off (right-click → AUTOMATIC to turn it back on)" if m.get("mmproj_choice") == "none" else "none (right-click → CHOOSE AN MMPROJ…)"))))
 			self.list.addItem(it)
 			if m["path"] == cur:
 				self.list.setCurrentItem(it)
@@ -3350,6 +3372,17 @@ class ModelDrawer(QWidget):
 		act.setData("reveal")
 		act.setEnabled(bool(path) and os.path.exists(path))
 		act.setToolTip(path)
+		if not m.get("convert"):
+			menu.addSeparator()
+			menu_title(menu, "VISION (MMPROJ)")
+			choice = m.get("mmproj_choice", "")
+			found = os.path.basename(m.get("mmproj") or "") if not choice else ""
+			for key, text, tip in (("", "AUTOMATIC" + (f" · {found}" if found else " · none found"), "use an mmproj*.gguf found next to the model"), ("pick", "CHOOSE AN MMPROJ…" + (f" · {os.path.basename(choice)}" if choice and choice != "none" else ""), "pick the vision projector (mmproj*.gguf) made for this model, wherever it is"), ("none", "NO VISION", "never load a vision projector for this model")):
+				act = menu.addAction(text)
+				act.setData(f"vision:{key}")
+				act.setCheckable(True)
+				act.setChecked(choice == key or (key == "pick" and choice not in ("", "none")))
+				act.setToolTip(tip)
 		if m.get("source") and os.path.exists(m["source"]):
 			act = menu.addAction("OPEN THE SOURCE IN FILE EXPLORER")
 			act.setData("reveal_source")
@@ -3386,6 +3419,12 @@ class ModelDrawer(QWidget):
 			self.base_requested.emit(m)
 		elif url == "reveal":
 			reveal_path(m.get("path"))
+		elif url in ("vision:", "vision:none"):
+			self.vision_set.emit(m.get("path", ""), url.split(":", 1)[1])
+		elif url == "vision:pick":
+			f, _f = QFileDialog.getOpenFileName(self, "Vision projector for " + os.path.basename(m.get("path", "")), os.path.dirname(m.get("path", "")), "mmproj (*.gguf)")
+			if f:
+				self.vision_set.emit(m.get("path", ""), os.path.normpath(f))
 		elif url == "reveal_source":
 			reveal_path(m.get("source"))
 		elif url:

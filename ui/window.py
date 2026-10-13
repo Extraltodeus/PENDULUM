@@ -445,6 +445,7 @@ class MainWindow(Frameless, QMainWindow):
 		self.lever_table.order_changed.connect(self.set_lever_order)
 		self.lever_table.exempt_requested.connect(lambda tid, on: self.plan_add("exempt", f"{'exempt' if on else 'guard again'} {self.lever_name(tid)}", lambda s, t=tid, o=on: s.set_exempt(t, o)))
 		self.drawer.base_requested.connect(self.ask_base)
+		self.drawer.vision_set.connect(lambda path, choice: self.worker.light("catalog_refresh", lambda s, p=path, c=choice: s.set_mmproj(p, c), f"vision of {os.path.basename(path)}"))
 		self.concepts.hovered.connect(self.iris.set_chover)
 		self.concepts.clicked.connect(lambda i: self.iris.pin_concept(-1 if self.iris.cpinned == i else i))
 		self.concepts.overflowed.connect(lambda shown, total: self.concept_panel.set_info(f"{shown} of {total} shown" if shown < total else (f"{total}" if total else "")))
@@ -1785,9 +1786,9 @@ class MainWindow(Frameless, QMainWindow):
 		self.submit_levers({t: 0.0 for t in set(self.strengths) | set(self.applied)})
 
 	def trait_dialog(self, t=None, mode="new"):
-		from engine.mtmd import find_mmproj
+		from engine.mtmd import pick_mmproj
 		loaded = bool(self.snap.get("loaded"))
-		mm = find_mmproj(self.model_path()) if loaded else ""
+		mm = pick_mmproj(self.model_path(), config.load_settings().get("mmproj")) if loaded else ""
 		why = "" if mm else ("load a model first: its mmproj*.gguf (next to it) lets it see images" if not loaded else "this model has no mmproj*.gguf next to it: it cannot see images")
 		dlg = TraitDialog(self, t, mode, {"mmproj": os.path.basename(mm) if mm else "", "why": why})
 		self.trait_dlg = dlg

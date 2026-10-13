@@ -24,7 +24,7 @@ from lens.match import best, lens_vram, score as lens_score
 from lens.readout import Readout, selfcheck
 from lens.vocab import masks
 from lens.workspace import analyze, detect_band
-from engine.mtmd import Vision, find_mmproj
+from engine.mtmd import Vision, pick_mmproj
 from persona import imagewords as IW
 from persona import levers as LV
 from persona.coherence import CALIB_TARGET, EXTRA_DEFAULTS as COH_EXTRA, GUARD_MODES, LEGACY_MODES, JUDGE_MIN_AUC, Coherence, Judge, Stopped, check, judge_key, question_list, threshold
@@ -179,6 +179,11 @@ class Session:
 	def catalog(self, refresh_lenses=False):
 		self.ensure_engine()
 		models = catalog.scan(self.model_dirs(), self.engine.lib.dir, self.settings.get("st_refs") or {})
+		choices = self.settings.get("mmproj") or {}
+		for m in models:
+			if m.get("path") and not m.get("convert"):
+				m["mmproj"] = pick_mmproj(m["path"], choices)
+				m["mmproj_choice"] = choices.get(m["path"], "")
 		self.lens_index = self.index_lenses(online=not os.environ.get("HF_HUB_OFFLINE"), refresh=refresh_lenses)
 		return {"models": models, "lenses": self.lens_index, "llama_dir": self.engine.lib.dir, "margin": int(self.settings.get("vram_reserve_mb", 900))}
 
@@ -1134,7 +1139,17 @@ class Session:
 		self.image_cache[self.image_key(path, layers)] = agg
 
 	def mmproj(self):
-		return find_mmproj((self.info or {}).get("path", "")) if self.engine is not None and self.engine.loaded else ""
+		return pick_mmproj((self.info or {}).get("path", ""), self.settings.get("mmproj")) if self.engine is not None and self.engine.loaded else ""
+
+	def set_mmproj(self, path, choice):
+		choices = dict(self.settings.get("mmproj") or {})
+		if choice:
+			choices[path] = choice
+		else:
+			choices.pop(path, None)
+		self.set_setting("mmproj", choices)
+		self.log(f"vision of {os.path.basename(path)}: " + ({"": "automatic (an mmproj*.gguf next to it)", "none": "off"}.get(choice) or os.path.basename(choice)))
+		return self.catalog()
 
 	def image_words(self, plus, minus, where="after", stop=None):
 		if self.engine is None or not self.engine.loaded or self.readout is None:

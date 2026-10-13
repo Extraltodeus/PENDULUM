@@ -54,6 +54,15 @@ def find_mmproj(model_path):
 	return os.path.join(folder, sorted(names, key=lambda n: (rank(n), n))[0])
 
 
+def pick_mmproj(model_path, choices=None):
+	choice = (choices or {}).get(model_path, "")
+	if choice == "none":
+		return ""
+	if choice and os.path.isfile(choice):
+		return choice
+	return find_mmproj(model_path)
+
+
 class Vision:
 	def __init__(self, engine, mmproj):
 		self.engine = engine
