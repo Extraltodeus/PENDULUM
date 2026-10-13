@@ -9,7 +9,7 @@ import time
 
 import numpy as np
 from PySide6.QtCore import QEvent, QObject, QPoint, QRect, Qt, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices, QGuiApplication
+from PySide6.QtGui import QDesktopServices, QGuiApplication, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QCheckBox, QFrame, QHBoxLayout, QInputDialog, QLabel, QMainWindow, QMenu, QMessageBox, QScrollArea, QSplitter, QToolTip, QVBoxLayout, QWidget
 
 import config
@@ -382,6 +382,7 @@ class MainWindow(Frameless, QMainWindow):
 		self.lever_table.extract_requested.connect(lambda tid: self.calibrate_all([tid]))
 		self.header.buttons["export"].clicked.connect(self.export)
 		self.header.buttons["assets"].clicked.connect(self.open_assets)
+		self.apply_keys = [QShortcut(QKeySequence(k), self, self.apply_key) for k in ("Ctrl+Return", "Ctrl+Enter")]
 		self.assets_dlg = None
 		self.header.buttons["exports"].clicked.connect(self.open_exports)
 		self.header.buttons["sound"].clicked.connect(self.toggle_sound)
@@ -408,6 +409,7 @@ class MainWindow(Frameless, QMainWindow):
 		self.chat.config_restore.connect(self.restore_config)
 		self.chat.reply_chosen.connect(lambda text: self.plan_add("chat_pick", "use the reply shown in the dialogue", lambda s, t=text: s.choose_reply(t)))
 		self.chat.history_requested.connect(self.open_history)
+		self.chat.apply_requested.connect(self.apply_key)
 		self.history_dlg = None
 		self.lever_table.committed.connect(self.set_lever)
 		self.lever_table.target_committed.connect(self.set_target)
@@ -995,6 +997,11 @@ class MainWindow(Frameless, QMainWindow):
 		self.todo_plan.until = None
 		SFX.play("click")
 		self.plan_changed()
+
+	def apply_key(self):
+		if self.todo_plan.auto or not self.todo_plan.pending():
+			return
+		self.plan_apply()
 
 	def plan_pause(self):
 		self.todo_plan.going = False

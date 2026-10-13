@@ -2358,6 +2358,7 @@ class ChatPanel(QWidget):
 	config_restore = Signal(object)
 	reply_chosen = Signal(str)
 	history_requested = Signal()
+	apply_requested = Signal()
 
 	def __init__(self, parent=None):
 		super().__init__(parent)
@@ -2424,6 +2425,9 @@ class ChatPanel(QWidget):
 
 	def eventFilter(self, obj, ev):
 		if obj is self.input and ev.type() == QEvent.Type.KeyPress:
+			if ev.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and ev.modifiers() & Qt.KeyboardModifier.ControlModifier:
+				self.apply_requested.emit()
+				return True
 			if ev.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not ev.modifiers() & Qt.KeyboardModifier.ShiftModifier:
 				self._send()
 				return True

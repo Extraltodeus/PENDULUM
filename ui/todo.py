@@ -267,7 +267,7 @@ class TodoPanel(QWidget):
 		row.addWidget(self.auto)
 		row.addWidget(self.b_done)
 		row.addStretch(1)
-		self.b_go = button("APPLY", "run the operations of the list, in order", accent=True)
+		self.b_go = button("APPLY", "run the operations of the list, in order (Ctrl+Enter)", accent=True)
 		self.b_go.clicked.connect(self._go)
 		self.breath = Breath(self.b_go)
 		row.addWidget(self.b_go)
@@ -326,7 +326,7 @@ class TodoPanel(QWidget):
 		self.b_go.setEnabled(not plan.auto and bool(pend or going))
 		self.breath.set_on(bool(pend) and not going)
 		self.b_go.setText("PAUSE" if going and not plan.auto and pend else "APPLY")
-		self.b_go.setToolTip("finish the running operation, then wait (the others stay in the list)" if going and not plan.auto and pend else "run the operations of the list, in order")
+		self.b_go.setToolTip("finish the running operation, then wait (the others stay in the list)" if going and not plan.auto and pend else "run the operations of the list, in order (Ctrl+Enter)")
 		self.b_drop.setEnabled(bool(pend))
 		self.view.set_plan(plan)
 
