@@ -108,7 +108,7 @@ def make_trait(name, seeds_plus, seeds_minus, plus="", minus="", taken=()):
 def signature(trait):
 	keys = ("name", "plus", "minus", "seeds_plus", "seeds_minus", "desc_plus", "desc_minus", "system_plus", "system_minus", "prompts")
 	data = {k: trait.get(k) for k in keys}
-	for k in ("images_plus", "images_minus"):
+	for k in ("images_plus", "images_minus", "poles_plus", "poles_minus"):
 		if trait.get(k):
 			data[k] = trait[k]
 	blob = json.dumps(data, ensure_ascii=False, sort_keys=True)

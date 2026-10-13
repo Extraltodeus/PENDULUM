@@ -971,8 +971,6 @@ class MainWindow(Frameless, QMainWindow):
 		if it is None:
 			return
 		p["params"] = it["params"]
-		if it["kind"] == "image_words" and getattr(self, "trait_dlg", None) is not None and (kind == "error" or p.get("stopped")):
-			self.trait_dlg.image_failed(p.get("text", "") if kind == "error" else "")
 		if kind == "error":
 			plan.finish(it, "failed", p.get("text", ""))
 			if it["kind"] == "load":
@@ -1786,21 +1784,17 @@ class MainWindow(Frameless, QMainWindow):
 		mm = find_mmproj(self.model_path()) if loaded else ""
 		why = "" if mm else ("load a model first: its mmproj*.gguf (next to it) lets it see images" if not loaded else "this model has no mmproj*.gguf next to it: it cannot see images")
 		dlg = TraitDialog(self, t, mode, {"mmproj": os.path.basename(mm) if mm else "", "why": why})
-		dlg.images_requested.connect(self.read_image_words)
 		self.trait_dlg = dlg
 		try:
 			return dlg if dlg.exec() else None
 		finally:
 			self.trait_dlg = None
 
-	def read_image_words(self, plus, minus, where):
-		self.plan_add("image_words", f"read {len(plus) + len(minus)} images for lever words", lambda s, p=list(plus), m=list(minus), w=where: s.image_words(p, m, w, stop=self.worker.stop), go=True)
-
 	def add_trait(self):
 		dlg = self.trait_dialog()
 		if dlg:
 			v = dlg.data()
-			self.plan_add("add_trait", f"build the lever {v['name']}", lambda s, v=v: s.add_trait(v["name"], v["seeds_plus"], v["seeds_minus"], v["plus"], v["minus"], v["desc_plus"], v["desc_minus"], v.get("images_plus"), v.get("images_minus")))
+			self.plan_add("add_trait", f"build the lever {v['name']}", lambda s, v=v: s.add_trait(v["name"], v["seeds_plus"], v["seeds_minus"], v["plus"], v["minus"], v["desc_plus"], v["desc_minus"], v.get("images_plus"), v.get("images_minus"), v.get("poles_plus"), v.get("poles_minus")))
 
 	def trait_row(self, tid):
 		return next((t for t in list(self.snap.get("traits") or []) + list(self.snap.get("extra_levers") or []) if t["id"] == tid), None)
@@ -2673,8 +2667,6 @@ class MainWindow(Frameless, QMainWindow):
 			self.heat.clear()
 			return
 		if kind == "image_words":
-			if getattr(self, "trait_dlg", None) is not None:
-				self.trait_dlg.set_image_words(p)
 			return
 
 	def on_goal_event(self, kind, p):

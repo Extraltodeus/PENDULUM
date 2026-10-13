@@ -11,6 +11,7 @@ from persona.coherence import check
 PROMPT = "Look at this image. What feeling, mood and qualities does it convey?"
 WHERE = ("after", "image", "both")
 STOP = set(re.findall(r"[a-z]+", PROMPT.lower())) | {"image", "images", "picture", "pictures", "feelings", "emotion", "emotions", "emotional", "evoke", "evokes", "conveys", "conveyed", "describe", "described", "vibe", "vibes", "atmosphere", "based", "overall", "sense", "quality", "assistant", "user", "the", "and", "its", "with", "kind", "closely", "characteristics", "traits", "attributes", "depict", "depicts", "depicting", "depiction", "depicted", "imagery", "visuals", "visual", "conveying", "sensations"}
+POLE_WEIGHT = 3.0
 CHUNK = 64
 POOL = 400
 TOP = 16
@@ -26,19 +27,24 @@ def image_paths(trait, pole):
 	return [os.path.join(folder, n) for n in trait.get(f"images_{pole}") or []]
 
 
+def pole_paths(trait, pole):
+	folder = image_dir(trait["id"], pole)
+	return [os.path.join(folder, n) for n in trait.get(f"poles_{pole}") or []]
+
+
 def has_images(trait):
 	return bool(trait.get("images_plus") or trait.get("images_minus"))
 
 
 def store_images(tid, pole, sources):
 	folder = image_dir(tid, pole)
-	names = []
+	pairs = []
 	for src in sources or []:
 		src = os.path.abspath(src)
 		if not os.path.isfile(src):
 			continue
 		if os.path.normcase(os.path.dirname(src)) == os.path.normcase(os.path.abspath(folder)):
-			names.append(os.path.basename(src))
+			pairs.append((src, os.path.basename(src)))
 			continue
 		os.makedirs(folder, exist_ok=True)
 		base, ext = os.path.splitext(os.path.basename(src))
@@ -47,11 +53,11 @@ def store_images(tid, pole, sources):
 			n += 1
 			name = f"{base}_{n}{ext}"
 		shutil.copy2(src, os.path.join(folder, name))
-		names.append(name)
-	return list(dict.fromkeys(names))
+		pairs.append((src, name))
+	return pairs
 
 
-def extract(vision, engine, plus, minus, band, stop=None, on_progress=None):
+def extract(vision, engine, plus, minus, band, stop=None, on_progress=None, weights=None):
 	lo, hi = band
 	layers = list(range(max(1, lo - 2), min(engine.n_layer - 1, hi) + 1))
 	sums = {p: {l: np.zeros(engine.n_embd, dtype=np.float64) for l in layers} for p in ("plus", "minus")}
@@ -60,12 +66,12 @@ def extract(vision, engine, plus, minus, band, stop=None, on_progress=None):
 	total = len(plus) + len(minus) + 1
 	done, span = 0, []
 
-	def add(pole, caps, rows):
+	def add(pole, caps, rows, w=1.0):
 		for l in layers:
 			h = caps[l][[r for r in rows if r < len(caps[l])]].astype(np.float64)
-			sums[pole][l] += h.sum(0)
-			norms[l] += float(np.linalg.norm(h, axis=1).sum())
-		counts[pole] += len(rows)
+			sums[pole][l] += w * h.sum(0)
+			norms[l] += w * float(np.linalg.norm(h, axis=1).sum())
+		counts[pole] += w * len(rows)
 
 	for pole, paths in (("plus", plus), ("minus", minus)):
 		for path in paths:
@@ -73,7 +79,7 @@ def extract(vision, engine, plus, minus, band, stop=None, on_progress=None):
 			caps, spans = vision.read(path, PROMPT, layers)
 			rows = rows_of(spans, "after")
 			span.append(len(rows))
-			add(pole, caps, rows)
+			add(pole, caps, rows, (weights or {}).get(path, 1.0))
 			done += 1
 			if on_progress:
 				on_progress(done / total)

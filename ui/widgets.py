@@ -4253,6 +4253,29 @@ def _caption(text):
 	return l
 
 
+POLE_ROLE = Qt.ItemDataRole.UserRole + 1
+
+
+class ImageDelegate(QStyledItemDelegate):
+	def paint(self, p, opt, index):
+		super().paint(p, opt, index)
+		if not index.data(POLE_ROLE):
+			return
+		r = QRectF(opt.rect).adjusted(1.5, 1.5, -1.5, -1.5)
+		p.save()
+		p.setPen(QPen(QColor(theme.ACCENT), 2))
+		p.setBrush(Qt.BrushStyle.NoBrush)
+		p.drawRect(r)
+		f = theme.mono(6.5, True)
+		fm = QFontMetrics(f)
+		tag = QRectF(r.left(), r.bottom() - fm.height() - 1, fm.horizontalAdvance("POLE") + 8, fm.height() + 1)
+		p.fillRect(tag, QColor(theme.ACCENT))
+		p.setFont(f)
+		p.setPen(QColor(theme.ON_ACCENT))
+		p.drawText(tag, Qt.AlignmentFlag.AlignCenter, "POLE")
+		p.restore()
+
+
 class ImageList(QListWidget):
 	EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
 	THUMB = 64
@@ -4267,13 +4290,23 @@ class ImageList(QListWidget):
 		self.setFixedHeight(self.THUMB + 26)
 		self.setAcceptDrops(True)
 		self.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
-		self.setToolTip("drop images here, or double-click to pick some · Delete removes the selected ones")
+		self.setItemDelegate(ImageDelegate(self))
+		self.setToolTip("drop images here, or double-click an empty spot to pick some\nclick an image: POLE or not · Delete removes the selected ones")
+		self.itemClicked.connect(self.toggle_pole)
 
 	def paths(self):
 		return [self.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.count())]
 
-	def add(self, paths):
+	def poles(self):
+		return [self.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.count()) if self.item(i).data(POLE_ROLE)]
+
+	def toggle_pole(self, it):
+		it.setData(POLE_ROLE, not it.data(POLE_ROLE))
+		it.setToolTip(it.data(Qt.ItemDataRole.UserRole) + ("\nPOLE: the lever leans on it most" if it.data(POLE_ROLE) else ""))
+
+	def add(self, paths, poles=()):
 		have = set(self.paths())
+		marked = {os.path.normcase(os.path.normpath(p)) for p in poles}
 		for p in paths:
 			p = os.path.normpath(p)
 			if not p.lower().endswith(self.EXT) or p in have or not os.path.isfile(p):
@@ -4282,7 +4315,8 @@ class ImageList(QListWidget):
 			icon = QIcon(pm.scaled(self.THUMB, self.THUMB, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)) if not pm.isNull() else QIcon()
 			it = QListWidgetItem(icon, "")
 			it.setData(Qt.ItemDataRole.UserRole, p)
-			it.setToolTip(p)
+			it.setData(POLE_ROLE, os.path.normcase(p) in marked)
+			it.setToolTip(p + ("\nPOLE: the lever leans on it most" if it.data(POLE_ROLE) else ""))
 			self.addItem(it)
 			have.add(p)
 
@@ -4318,8 +4352,6 @@ class ImageList(QListWidget):
 
 class TraitDialog(EvaDialog):
 	MODES = {"new": ("New lever", "CREATE"), "edit": ("Edit lever", "SAVE"), "duplicate": ("Duplicate lever", "CREATE")}
-	images_requested = Signal(object, object, str)
-	WHERE = (("after", "the mood", "what the model reads right after the image, while the question about its feeling is asked: moods and qualities (ominous, serene…)"), ("image", "the content", "what the model reads in the image tokens themselves: what is shown (skull, petals…)"), ("both", "both", "mood and content, half each"))
 
 	def __init__(self, parent=None, trait=None, mode="new", vision=None):
 		super().__init__(parent)
@@ -4336,7 +4368,7 @@ class TraitDialog(EvaDialog):
 			t["name"] = f"{t['name']} copy"
 		self.fields = {}
 		self._trait = t
-		self.switch = SegSwitch((("words", "WORDS", "name, poles, words and characters of the lever"), ("images", "IMAGES", "find the words of each side in images: the lens reads what the model sees in them")))
+		self.switch = SegSwitch((("words", "WORDS", "a lever made from words: name, poles, words and characters"), ("images", "IMAGES", "a lever made from images: the model looks at them (no text is written) and the lever is what sets the + images apart from the − ones")))
 		self.switch.set_value("words")
 		self.switch.picked.connect(self._page)
 		lay.addWidget(self.switch)
@@ -4347,11 +4379,6 @@ class TraitDialog(EvaDialog):
 		lay.addWidget(self.words_page)
 		self.images_page = self._images_page(vision or {})
 		self.images_page.setVisible(False)
-		if mode == "edit" and t and not t.get("custom", True):
-			self.as_poles.setEnabled(False)
-			self.as_poles.setToolTip("images as poles are for custom levers: DUPLICATE this default lever to make one")
-		if self.as_poles.isChecked():
-			self._page("images")
 		lay.addWidget(self.images_page)
 		for key, label, ph, tip in TRAIT_FIELDS:
 			l = QLabel(label)
@@ -4369,11 +4396,16 @@ class TraitDialog(EvaDialog):
 			self.fields[key] = e
 		self.needed = ("name",) if t.get("lever_only") and not t.get("no_lexicon") else NEEDED
 		if t.get("no_lexicon"):
-			lay.addWidget(_note("not measured on this model: none of the words of one side is a single token for it\nadd more words (or English ones) to have the lens measure it; it steers either way", theme.WARN))
+			page.addWidget(_note("not measured on this model: none of the words of one side is a single token for it\nadd more words (or English ones) to have the lens measure it; it steers either way", theme.WARN))
 		elif t.get("lever_only") and t.get("from_goal"):
-			lay.addWidget(_note("made from a goal: no words needed, it steers without being measured\nadd words on both sides to have the lens measure it too"))
+			page.addWidget(_note("made from a goal: no words needed, it steers without being measured\nadd words on both sides to have the lens measure it too"))
 		else:
-			lay.addWidget(_note("words are optional: without words on both sides the lever steers but is not measured (no MEASURED value, no TARGET)"))
+			page.addWidget(_note("words are optional: without words on both sides the lever steers but is not measured (no MEASURED value, no TARGET)"))
+		if mode == "edit" and t and not t.get("custom", True):
+			self.switch.buttons["images"].setEnabled(False)
+			self.switch.buttons["images"].setToolTip("images are for custom levers: DUPLICATE this default lever to make one")
+		if t.get("images_plus") or t.get("images_minus"):
+			self._page("images")
 		if mode == "edit":
 			lay.addWidget(_note("saving rebuilds the lever: it goes back to 0 and is extracted again the next time you move it"))
 		elif mode == "duplicate":
@@ -4391,20 +4423,30 @@ class TraitDialog(EvaDialog):
 		row.addWidget(ok)
 		lay.addLayout(row)
 
+	def _caption(self, text, tip=""):
+		l = QLabel(text)
+		theme.tag_font(l, 7.5)
+		l.setStyleSheet(f"color: {theme.MUTED}; padding-top: 4px;")
+		l.setToolTip(tip)
+		return l
+
 	def _images_page(self, vision):
 		w = QWidget()
 		v = QVBoxLayout(w)
 		v.setContentsMargins(0, 0, 0, 0)
 		v.setSpacing(3)
 		mm = vision.get("mmproj", "")
-		v.addWidget(_note(f"vision: {mm}" if mm else (vision.get("why") or "load a model that has an mmproj*.gguf next to it to read images"), theme.DIM if mm else theme.WARN))
+		v.addWidget(_note(f"vision: {mm}" if mm else (vision.get("why") or "load a model that has an mmproj*.gguf next to it to see images"), theme.DIM if mm else theme.WARN))
+		v.addWidget(self._caption("NAME", "the lever's name in the LEVERS list"))
+		self.img_name = QLineEdit(self._trait.get("name", ""))
+		self.img_name.setFont(theme.mono(9))
+		self.img_name.setPlaceholderText("e.g. Dread")
+		hscroll(self.img_name)
+		v.addWidget(self.img_name)
 		self.img_lists = {}
 		for pole, cap in (("plus", "PLUS IMAGES"), ("minus", "MINUS IMAGES")):
 			row = QHBoxLayout()
-			l = QLabel(cap)
-			theme.tag_font(l, 7.5)
-			l.setStyleSheet(f"color: {theme.MUTED}; padding-top: 4px;")
-			row.addWidget(l)
+			row.addWidget(self._caption(cap, "images of this side: drop them in, click one to make it a POLE"))
 			row.addStretch(1)
 			lst = ImageList()
 			add = button("ADD…", "pick images for this side (or drop them in the box)")
@@ -4415,34 +4457,9 @@ class TraitDialog(EvaDialog):
 			row.addWidget(clr)
 			v.addLayout(row)
 			v.addWidget(lst)
+			lst.add(self._trait.get(f"images_{pole}") or [], self._trait.get(f"poles_{pole}") or [])
 			self.img_lists[pole] = lst
-		has = bool(self._trait.get("images_plus") or self._trait.get("images_minus"))
-		for pole in ("plus", "minus"):
-			self.img_lists[pole].add(self._trait.get(f"images_{pole}") or [])
-		self.as_poles = QCheckBox("USE THE IMAGES AS THE POLES")
-		self.as_poles.setToolTip("build the lever from the images themselves instead of the poles' words or characters:\nthe model looks at each image (no text is written) and the lever is the difference between what it holds after the + images and after the − ones\nthe images are copied into the working folder (lever_images) so the lever can be rebuilt on any model that can see\none side only: compared with the same question without an image")
-		self.as_poles.setChecked(has)
-		self.as_poles.setEnabled(bool(mm) or has)
-		v.addWidget(self.as_poles)
-		row = QHBoxLayout()
-		cap = QLabel("READ")
-		theme.tag_font(cap, 7.5)
-		cap.setStyleSheet(f"color: {theme.MUTED};")
-		row.addWidget(cap)
-		self.where = QComboBox()
-		for key, label, tip in self.WHERE:
-			self.where.addItem(label, key)
-			self.where.setItemData(self.where.count() - 1, tip, Qt.ItemDataRole.ToolTipRole)
-		row.addWidget(self.where)
-		row.addStretch(1)
-		self.b_read = button("READ THE IMAGES", "the model looks at each image (no text is written): the lens reads what it sees in the workspace band\nthe words that set one side apart from the other go to PLUS WORDS / MINUS WORDS (added to what is there)\none side only: compared with a neutral text", accent=True)
-		self.b_read.setEnabled(bool(mm))
-		self.b_read.clicked.connect(self._read_images)
-		row.addWidget(self.b_read)
-		v.addLayout(row)
-		self.img_note = _note("", theme.DIM)
-		self.img_note.setWordWrap(True)
-		v.addWidget(self.img_note)
+		v.addWidget(_note("click an image to make it a POLE: the lever leans on it most (every image counts, poles included)\nthe model only looks at them, no text is written · one side only: compared with no image\nthe images are copied into the working folder so the lever can be rebuilt on any model that sees"))
 		return w
 
 	def _page(self, key):
@@ -4451,56 +4468,34 @@ class TraitDialog(EvaDialog):
 		self.switch.set_value(key)
 		self.adjustSize()
 
-	def _read_images(self):
-		plus, minus = self.img_lists["plus"].paths(), self.img_lists["minus"].paths()
-		if not plus and not minus:
-			self.img_note.setText("add images to at least one side")
-			self.img_note.setStyleSheet(f"color: {theme.WARN};")
-			return
-		self.b_read.setEnabled(False)
-		self.img_note.setStyleSheet(f"color: {theme.DIM};")
-		self.img_note.setText(f"reading {len(plus)} + {len(minus)} images… (TO DO)")
-		self.images_requested.emit(plus, minus, self.where.currentData() or "after")
-
-	def set_image_words(self, res):
-		self.b_read.setEnabled(True)
-		added = {}
-		for pole in ("plus", "minus"):
-			e = self.fields[f"seeds_{pole}"]
-			have = [w.strip() for w in e.text().split(",") if w.strip()]
-			low = {w.lower() for w in have}
-			new = [w for w in res.get(pole) or [] if w.lower() not in low]
-			e.setText(", ".join(have + new))
-			e.setCursorPosition(0)
-			added[pole] = new
-		self.img_note.setStyleSheet(f"color: {theme.DIM};")
-		self.img_note.setText(f"+{len(added['plus'])} plus words, +{len(added['minus'])} minus words from the images · edit them in WORDS")
-		rows = [f"{'+' if pole == 'plus' else '−'} {r['image']} ({r['tokens']} tokens): {', '.join(r['top'])}" for pole in ("plus", "minus") for r in (res.get("per_image") or {}).get(pole, [])]
-		self.img_note.setToolTip("what the lens reads most in each image:\n" + "\n".join(rows) if rows else "")
-		self._page("words")
-
-	def image_failed(self, text):
-		self.b_read.setEnabled(True)
-		self.img_note.setStyleSheet(f"color: {theme.WARN};")
-		self.img_note.setText(f"could not read the images: {text}" if text else "reading the images was stopped")
+	def kind(self):
+		return self.switch.value() or "words"
 
 	def _ok(self):
 		v = self.data()
-		missing = [label.lower() for key, label, _p, _t in TRAIT_FIELDS if key in self.needed and not v[key]]
-		if self.as_poles.isChecked() and not (v["images_plus"] or v["images_minus"]):
-			missing.append("images (or untick USE THE IMAGES AS THE POLES)")
+		if self.kind() == "images":
+			missing = (["name"] if not v["name"] else []) + (["images on at least one side"] if not (v["images_plus"] or v["images_minus"]) else [])
+		else:
+			missing = [label.lower() for key, label, _p, _t in TRAIT_FIELDS if key in self.needed and not v[key]]
 		if missing:
 			self.hint.setText("still needed: " + ", ".join(missing))
 			return
 		self.accept()
 
 	def data(self):
+		if self.kind() == "images":
+			v = {k: "" for k in self.fields}
+			v["name"] = self.img_name.text().strip()
+			v["seeds_plus"], v["seeds_minus"] = [], []
+			for pole in ("plus", "minus"):
+				v[f"images_{pole}"] = self.img_lists[pole].paths()
+				v[f"poles_{pole}"] = self.img_lists[pole].poles()
+			return v
 		v = {k: e.text().strip() for k, e in self.fields.items()}
 		for k in ("seeds_plus", "seeds_minus"):
 			v[k] = list(dict.fromkeys(w.strip() for w in v[k].split(",") if w.strip()))
-		use = self.as_poles.isChecked()
 		for pole in ("plus", "minus"):
-			v[f"images_{pole}"] = self.img_lists[pole].paths() if use else []
+			v[f"images_{pole}"], v[f"poles_{pole}"] = [], []
 		return v
 
 	def values(self):

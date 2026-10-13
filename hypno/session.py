@@ -377,11 +377,11 @@ class Session:
 
 	def trait_rows(self):
 		lex = self.lexicons or {}
-		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": d.get("custom", False), "edited": d.get("edited", False), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "images_plus": IW.image_paths(d, "plus"), "images_minus": IW.image_paths(d, "minus"), "lexicon": {p: lex[d["id"]][p]["strs"][:24] for p in ("plus", "minus")} if d["id"] in lex else {}} for d in self.trait_defs()]
+		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": d.get("custom", False), "edited": d.get("edited", False), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "images_plus": IW.image_paths(d, "plus"), "images_minus": IW.image_paths(d, "minus"), "poles_plus": IW.pole_paths(d, "plus"), "poles_minus": IW.pole_paths(d, "minus"), "lexicon": {p: lex[d["id"]][p]["strs"][:24] for p in ("plus", "minus")} if d["id"] in lex else {}} for d in self.trait_defs()]
 
 	def extra_rows(self):
 		measured = {d["id"] for d in self.trait_defs()}
-		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": True, "lever_only": True, "from_goal": d.get("from_goal", ""), "no_lexicon": bool(d.get("seeds_plus") and d.get("seeds_minus")), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "images_plus": IW.image_paths(d, "plus"), "images_minus": IW.image_paths(d, "minus"), "lexicon": {}} for d in self.defs if d.get("custom") and d["id"] not in measured]
+		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": True, "lever_only": True, "from_goal": d.get("from_goal", ""), "no_lexicon": bool(d.get("seeds_plus") and d.get("seeds_minus")), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "images_plus": IW.image_paths(d, "plus"), "images_minus": IW.image_paths(d, "minus"), "poles_plus": IW.pole_paths(d, "plus"), "poles_minus": IW.pole_paths(d, "minus"), "lexicon": {}} for d in self.defs if d.get("custom") and d["id"] not in measured]
 
 	def snapshot(self):
 		if not self.engine or not self.engine.loaded:
@@ -1061,7 +1061,8 @@ class Session:
 		self.log(f"'{trait['name']}' from images: {len(plus)} + {len(minus)} read through {os.path.basename(mm)}")
 		vis = Vision(self.engine, mm)
 		try:
-			return IW.extract(vis, self.engine, plus, minus, self.band, stop, on_progress)
+			poles = set(IW.pole_paths(trait, "plus") + IW.pole_paths(trait, "minus"))
+			return IW.extract(vis, self.engine, plus, minus, self.band, stop, on_progress, {p: IW.POLE_WEIGHT for p in poles})
 		finally:
 			vis.close()
 
@@ -1601,12 +1602,12 @@ class Session:
 		self.log(f"recalibrating {len(ids)} lever(s) with the current judge…")
 		self.calibrate_all(ids, stop)
 
-	def add_trait(self, name, seeds_plus, seeds_minus, plus="", minus="", desc_plus="", desc_minus="", images_plus=None, images_minus=None):
+	def add_trait(self, name, seeds_plus, seeds_minus, plus="", minus="", desc_plus="", desc_minus="", images_plus=None, images_minus=None, poles_plus=None, poles_minus=None):
 		t = make_trait(name, seeds_plus, seeds_minus, plus, minus, taken={d["id"] for d in builtin_definitions()})
 		for k, v in (("desc_plus", desc_plus), ("desc_minus", desc_minus)):
 			if (v or "").strip():
 				t[k] = v.strip()
-		self.set_images(t, {"images_plus": images_plus, "images_minus": images_minus})
+		self.set_images(t, {"images_plus": images_plus, "images_minus": images_minus, "poles_plus": poles_plus, "poles_minus": poles_minus})
 		self.levers.pop(t["id"], None)
 		self.strengths.pop(t["id"], None)
 		custom = [c for c in load_custom() if c["id"] != t["id"]] + [t]
@@ -1713,22 +1714,45 @@ class Session:
 		for k in ("system_plus", "system_minus", "prompts"):
 			if src.get(k):
 				t[k] = list(src[k]) if isinstance(src[k], list) else src[k]
-		self.set_images(t, values if values and ("images_plus" in values or "images_minus" in values) else {f"images_{p}": IW.image_paths(src, p) for p in ("plus", "minus")})
+		self.set_images(t, values if values and ("images_plus" in values or "images_minus" in values) else {**{f"images_{p}": IW.image_paths(src, p) for p in ("plus", "minus")}, **{f"poles_{p}": IW.pole_paths(src, p) for p in ("plus", "minus")}})
 		save_custom([c for c in load_custom() if c["id"] != t["id"]] + [t])
 		self.reload_traits()
 		self.log(f"lever '{src['name']}' duplicated as '{t['name']}'")
 		return t
 
 	def set_images(self, t, values):
+		touched = False
 		for pole in ("plus", "minus"):
 			k = f"images_{pole}"
 			if values.get(k) is None:
 				continue
-			names = IW.store_images(t["id"], pole, values[k])
-			if names:
-				t[k] = names
-			else:
-				t.pop(k, None)
+			touched = True
+			pairs = IW.store_images(t["id"], pole, values[k])
+			marked = {os.path.normcase(os.path.abspath(p)) for p in values.get(f"poles_{pole}") or []}
+			names = [n for _s, n in pairs]
+			poles = [n for s, n in pairs if os.path.normcase(s) in marked]
+			for key, val in ((k, names), (f"poles_{pole}", poles)):
+				if val:
+					t[key] = val
+				else:
+					t.pop(key, None)
+		if touched and IW.has_images(t):
+			self.image_seeds(t)
+
+	def image_seeds(self, t):
+		for k in ("desc_plus", "desc_minus", "system_plus", "system_minus", "prompts"):
+			t.pop(k, None)
+		words = {"plus": [], "minus": []}
+		if self.mmproj() and self.readout is not None:
+			try:
+				words = self.image_words(IW.image_paths(t, "plus"), IW.image_paths(t, "minus"), "after")
+			except Exception as exc:
+				self.log(f"'{t['name']}': the words of its images could not be read ({exc}): it steers without being measured", "warn")
+		else:
+			self.log(f"'{t['name']}': no model that sees is loaded, its images give no words yet: it steers without being measured", "warn")
+		t["seeds_plus"], t["seeds_minus"] = list(words.get("plus") or []), list(words.get("minus") or [])
+		t["plus"] = t["seeds_plus"][0] if t["seeds_plus"] else t["name"]
+		t["minus"] = t["seeds_minus"][0] if t["seeds_minus"] else "not " + t["name"]
 
 	def delete_trait(self, tid):
 		custom = load_custom()
