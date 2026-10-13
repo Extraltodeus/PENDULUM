@@ -91,7 +91,7 @@ def _data_dir():
 
 
 def _paths(data_dir):
-	global DATA_DIR, SETTINGS_PATH, LENSES_DIR, PROFILES_DIR, EXPORTS_DIR, CACHE_DIR, CONVERTED_DIR, CUSTOM_TRAITS_PATH, TRAIT_OVERRIDES_PATH, GOALS_PATH
+	global DATA_DIR, SETTINGS_PATH, LENSES_DIR, PROFILES_DIR, EXPORTS_DIR, CACHE_DIR, CONVERTED_DIR, CUSTOM_TRAITS_PATH, TRAIT_OVERRIDES_PATH, GOALS_PATH, LEVER_IMAGES_DIR
 	DATA_DIR = data_dir
 	SETTINGS_PATH = os.path.join(data_dir, "settings.json")
 	LENSES_DIR = os.path.join(data_dir, "lenses")
@@ -102,6 +102,7 @@ def _paths(data_dir):
 	CUSTOM_TRAITS_PATH = os.path.join(data_dir, "custom_traits.json")
 	TRAIT_OVERRIDES_PATH = os.path.join(data_dir, "trait_overrides.json")
 	GOALS_PATH = os.path.join(data_dir, "goals.json")
+	LEVER_IMAGES_DIR = os.path.join(data_dir, "lever_images")
 
 
 def use_data_dir(path):

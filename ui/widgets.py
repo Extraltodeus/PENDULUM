@@ -4335,6 +4335,7 @@ class TraitDialog(EvaDialog):
 		if mode == "duplicate" and t.get("name"):
 			t["name"] = f"{t['name']} copy"
 		self.fields = {}
+		self._trait = t
 		self.switch = SegSwitch((("words", "WORDS", "name, poles, words and characters of the lever"), ("images", "IMAGES", "find the words of each side in images: the lens reads what the model sees in them")))
 		self.switch.set_value("words")
 		self.switch.picked.connect(self._page)
@@ -4345,7 +4346,12 @@ class TraitDialog(EvaDialog):
 		page.setSpacing(3)
 		lay.addWidget(self.words_page)
 		self.images_page = self._images_page(vision or {})
-		self.images_page.hide()
+		self.images_page.setVisible(False)
+		if mode == "edit" and t and not t.get("custom", True):
+			self.as_poles.setEnabled(False)
+			self.as_poles.setToolTip("images as poles are for custom levers: DUPLICATE this default lever to make one")
+		if self.as_poles.isChecked():
+			self._page("images")
 		lay.addWidget(self.images_page)
 		for key, label, ph, tip in TRAIT_FIELDS:
 			l = QLabel(label)
@@ -4410,6 +4416,14 @@ class TraitDialog(EvaDialog):
 			v.addLayout(row)
 			v.addWidget(lst)
 			self.img_lists[pole] = lst
+		has = bool(self._trait.get("images_plus") or self._trait.get("images_minus"))
+		for pole in ("plus", "minus"):
+			self.img_lists[pole].add(self._trait.get(f"images_{pole}") or [])
+		self.as_poles = QCheckBox("USE THE IMAGES AS THE POLES")
+		self.as_poles.setToolTip("build the lever from the images themselves instead of the poles' words or characters:\nthe model looks at each image (no text is written) and the lever is the difference between what it holds after the + images and after the − ones\nthe images are copied into the working folder (lever_images) so the lever can be rebuilt on any model that can see\none side only: compared with the same question without an image")
+		self.as_poles.setChecked(has)
+		self.as_poles.setEnabled(bool(mm) or has)
+		v.addWidget(self.as_poles)
 		row = QHBoxLayout()
 		cap = QLabel("READ")
 		theme.tag_font(cap, 7.5)
@@ -4473,6 +4487,8 @@ class TraitDialog(EvaDialog):
 	def _ok(self):
 		v = self.data()
 		missing = [label.lower() for key, label, _p, _t in TRAIT_FIELDS if key in self.needed and not v[key]]
+		if self.as_poles.isChecked() and not (v["images_plus"] or v["images_minus"]):
+			missing.append("images (or untick USE THE IMAGES AS THE POLES)")
 		if missing:
 			self.hint.setText("still needed: " + ", ".join(missing))
 			return
@@ -4482,6 +4498,9 @@ class TraitDialog(EvaDialog):
 		v = {k: e.text().strip() for k, e in self.fields.items()}
 		for k in ("seeds_plus", "seeds_minus"):
 			v[k] = list(dict.fromkeys(w.strip() for w in v[k].split(",") if w.strip()))
+		use = self.as_poles.isChecked()
+		for pole in ("plus", "minus"):
+			v[f"images_{pole}"] = self.img_lists[pole].paths() if use else []
 		return v
 
 	def values(self):

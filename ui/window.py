@@ -1800,7 +1800,7 @@ class MainWindow(Frameless, QMainWindow):
 		dlg = self.trait_dialog()
 		if dlg:
 			v = dlg.data()
-			self.plan_add("add_trait", f"build the lever {v['name']}", lambda s, v=v: s.add_trait(v["name"], v["seeds_plus"], v["seeds_minus"], v["plus"], v["minus"], v["desc_plus"], v["desc_minus"]))
+			self.plan_add("add_trait", f"build the lever {v['name']}", lambda s, v=v: s.add_trait(v["name"], v["seeds_plus"], v["seeds_minus"], v["plus"], v["minus"], v["desc_plus"], v["desc_minus"], v.get("images_plus"), v.get("images_minus")))
 
 	def trait_row(self, tid):
 		return next((t for t in list(self.snap.get("traits") or []) + list(self.snap.get("extra_levers") or []) if t["id"] == tid), None)

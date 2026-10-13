@@ -377,11 +377,11 @@ class Session:
 
 	def trait_rows(self):
 		lex = self.lexicons or {}
-		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": d.get("custom", False), "edited": d.get("edited", False), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "lexicon": {p: lex[d["id"]][p]["strs"][:24] for p in ("plus", "minus")} if d["id"] in lex else {}} for d in self.trait_defs()]
+		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": d.get("custom", False), "edited": d.get("edited", False), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "images_plus": IW.image_paths(d, "plus"), "images_minus": IW.image_paths(d, "minus"), "lexicon": {p: lex[d["id"]][p]["strs"][:24] for p in ("plus", "minus")} if d["id"] in lex else {}} for d in self.trait_defs()]
 
 	def extra_rows(self):
 		measured = {d["id"] for d in self.trait_defs()}
-		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": True, "lever_only": True, "from_goal": d.get("from_goal", ""), "no_lexicon": bool(d.get("seeds_plus") and d.get("seeds_minus")), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "lexicon": {}} for d in self.defs if d.get("custom") and d["id"] not in measured]
+		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": True, "lever_only": True, "from_goal": d.get("from_goal", ""), "no_lexicon": bool(d.get("seeds_plus") and d.get("seeds_minus")), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "images_plus": IW.image_paths(d, "plus"), "images_minus": IW.image_paths(d, "minus"), "lexicon": {}} for d in self.defs if d.get("custom") and d["id"] not in measured]
 
 	def snapshot(self):
 		if not self.engine or not self.engine.loaded:
@@ -800,7 +800,11 @@ class Session:
 		self.log(f"extracting the '{trait['name']}' lever ({trait['plus']} ↔ {trait['minus']})…")
 		t = time.time()
 		self.engine.set_steering(None)
-		ex = LV.extract(self.engine, trait, self.band, stop=stop, on_progress=lambda p: self.emit("progress", {"task": f"lever:{tid}", "value": p}), prompts=trait.get("prompts"))
+		progress = lambda p: self.emit("progress", {"task": f"lever:{tid}", "value": p})
+		if IW.has_images(trait):
+			ex = self.image_extract(trait, stop, progress)
+		else:
+			ex = LV.extract(self.engine, trait, self.band, stop=stop, on_progress=progress, prompts=trait.get("prompts"))
 		if ex is None:
 			return None
 		layers = LV.pick_layers(ex["sep"], self.band)
@@ -1045,6 +1049,21 @@ class Session:
 		except Stopped:
 			self.strengths = prev
 			raise
+
+	def image_extract(self, trait, stop=None, on_progress=None):
+		mm = self.mmproj()
+		if not mm:
+			raise RuntimeError(f"'{trait['name']}' is made from images: this model has no mmproj*.gguf next to it to see them")
+		plus, minus = IW.image_paths(trait, "plus"), IW.image_paths(trait, "minus")
+		missing = [p for p in plus + minus if not os.path.isfile(p)]
+		if missing:
+			raise RuntimeError(f"'{trait['name']}': {len(missing)} image(s) missing in {os.path.dirname(missing[0])}")
+		self.log(f"'{trait['name']}' from images: {len(plus)} + {len(minus)} read through {os.path.basename(mm)}")
+		vis = Vision(self.engine, mm)
+		try:
+			return IW.extract(vis, self.engine, plus, minus, self.band, stop, on_progress)
+		finally:
+			vis.close()
 
 	def mmproj(self):
 		return find_mmproj((self.info or {}).get("path", "")) if self.engine is not None and self.engine.loaded else ""
@@ -1582,11 +1601,12 @@ class Session:
 		self.log(f"recalibrating {len(ids)} lever(s) with the current judge…")
 		self.calibrate_all(ids, stop)
 
-	def add_trait(self, name, seeds_plus, seeds_minus, plus="", minus="", desc_plus="", desc_minus=""):
+	def add_trait(self, name, seeds_plus, seeds_minus, plus="", minus="", desc_plus="", desc_minus="", images_plus=None, images_minus=None):
 		t = make_trait(name, seeds_plus, seeds_minus, plus, minus, taken={d["id"] for d in builtin_definitions()})
 		for k, v in (("desc_plus", desc_plus), ("desc_minus", desc_minus)):
 			if (v or "").strip():
 				t[k] = v.strip()
+		self.set_images(t, {"images_plus": images_plus, "images_minus": images_minus})
 		self.levers.pop(t["id"], None)
 		self.strengths.pop(t["id"], None)
 		custom = [c for c in load_custom() if c["id"] != t["id"]] + [t]
@@ -1671,6 +1691,7 @@ class Session:
 			for k in ("seeds_plus", "seeds_minus"):
 				if values.get(k) is not None:
 					t[k] = [s.strip() for s in values[k] if s.strip()]
+			self.set_images(t, values)
 			save_custom(custom)
 		had = self.strengths.get(tid, 0.0)
 		self.drop_lever(tid)
@@ -1692,10 +1713,22 @@ class Session:
 		for k in ("system_plus", "system_minus", "prompts"):
 			if src.get(k):
 				t[k] = list(src[k]) if isinstance(src[k], list) else src[k]
+		self.set_images(t, values if values and ("images_plus" in values or "images_minus" in values) else {f"images_{p}": IW.image_paths(src, p) for p in ("plus", "minus")})
 		save_custom([c for c in load_custom() if c["id"] != t["id"]] + [t])
 		self.reload_traits()
 		self.log(f"lever '{src['name']}' duplicated as '{t['name']}'")
 		return t
+
+	def set_images(self, t, values):
+		for pole in ("plus", "minus"):
+			k = f"images_{pole}"
+			if values.get(k) is None:
+				continue
+			names = IW.store_images(t["id"], pole, values[k])
+			if names:
+				t[k] = names
+			else:
+				t.pop(k, None)
 
 	def delete_trait(self, tid):
 		custom = load_custom()
