@@ -2,6 +2,8 @@ import html
 import math
 import os
 import re
+import subprocess
+import sys
 import time
 from urllib.parse import quote
 
@@ -3130,6 +3132,16 @@ QUANT_TAIL = re.compile(r"(?i)[._ -](i?q\d\w*|f16|bf16|f32|fp16)$")
 CONTAINERS = {"models", "model", "gguf", "ggufs", "llm", "llms", "hub", "snapshots", "blobs", "downloads"}
 
 
+def reveal_path(path):
+	if not path or not os.path.exists(path):
+		return False
+	if sys.platform.startswith("win"):
+		subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])
+		return True
+	QDesktopServices.openUrl(QUrl.fromLocalFile(path if os.path.isdir(path) else os.path.dirname(path)))
+	return True
+
+
 def hf_ids(path, roots=()):
 	parts = [s for s in os.path.abspath(path).replace("\\", "/").split("/") if s]
 	cache = next((s for s in parts if s.startswith("models--")), None)
@@ -3328,6 +3340,15 @@ class ModelDrawer(QWidget):
 		menu = QMenu(self)
 		menu.setFont(theme.ui(8))
 		menu.addAction("LOAD").setData("load")
+		path = m.get("path", "")
+		act = menu.addAction("OPEN IN FILE EXPLORER")
+		act.setData("reveal")
+		act.setEnabled(bool(path) and os.path.exists(path))
+		act.setToolTip(path)
+		if m.get("source") and os.path.exists(m["source"]):
+			act = menu.addAction("OPEN THE SOURCE IN FILE EXPLORER")
+			act.setData("reveal_source")
+			act.setToolTip(f"the safetensors this GGUF was converted from:\n{m['source']}")
 		if m.get("kind") == "file":
 			act = menu.addAction("BASE MODEL (config + tokenizer)…")
 			act.setData("base_model")
@@ -3358,6 +3379,10 @@ class ModelDrawer(QWidget):
 			self._load()
 		elif url == "base_model":
 			self.base_requested.emit(m)
+		elif url == "reveal":
+			reveal_path(m.get("path"))
+		elif url == "reveal_source":
+			reveal_path(m.get("source"))
 		elif url:
 			QDesktopServices.openUrl(QUrl(url))
 
