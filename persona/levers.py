@@ -40,6 +40,8 @@ def system_prompt(trait, pole):
 	if desc:
 		return f"You are {desc}. Stay fully in character in every answer."
 	words = ", ".join(w for w in trait.get(f"seeds_{pole}", [])[:8])
+	if not words:
+		return f"You are completely {adj}. You think, talk and behave in a {adj} way. Stay fully in character in every answer."
 	return f"You are completely {adj}. You think, talk and behave in a {adj} way, and you naturally use words like: {words}. Stay fully in character in every answer."
 
 

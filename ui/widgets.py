@@ -1760,7 +1760,7 @@ class LeverTable(QWidget):
 				rows.append(("", "scored by the judge: who are you? what do you want? who am I to you? · GOALS window", theme.DIM))
 				return {"title": f"{t['name'].upper()} · GOAL", "rows": rows}
 			if t.get("lever_only"):
-				rows.append(("", "not measured: " + ("its words give no lexicon on this model (none is a single token on one side): add more words, or English ones" if t.get("no_lexicon") else ("a lever made from a goal" if t.get("from_goal") else "a custom lever") + " has no word list the lens can read"), theme.MUTED))
+				rows.append(("", "not measured: " + ("its words give no lexicon on this model (none is a single token on one side): add more words, or English ones" if t.get("no_lexicon") else "a lever made from a goal has no word list the lens can read" if t.get("from_goal") else "it needs words on both sides (right-click → EDIT…)"), theme.MUTED))
 				return {"title": f"{t['name'].upper()} · MEASURED", "rows": rows}
 			rows.append(("baseline", f"{b:+.2f}   (no lever)" if b is not None else "not measured yet", theme.TEXT))
 			if c is not None:
@@ -1773,7 +1773,7 @@ class LeverTable(QWidget):
 			rows.append(("", "open GOALS (right-click → OPEN GOALS…) and TRAIN it here, or ALIGN it; the slider stays inactive until then", theme.TEXT))
 			return {"title": f"{t['name'].upper()} · GOAL", "rows": rows}
 		if t.get("lever_only"):
-			prof = "not measured (" + ("its words give no lexicon on this model" if t.get("no_lexicon") else "made from a goal's character" if t.get("from_goal") else "no word list for the lens") + ")"
+			prof = "not measured (" + ("its words give no lexicon on this model" if t.get("no_lexicon") else "made from a goal's character" if t.get("from_goal") else "no words on both sides") + ")"
 		elif t.get("goal"):
 			prof = "not checked yet" if b is None and c is None else " · ".join(s for s in (f"{c:.0%} match at the last check" if c is not None else "", f"{b:.0%} without it" if b is not None else "") if s)
 		elif c is not None:
@@ -4229,13 +4229,13 @@ class SettingsDialog(EvaDialog):
 TRAIT_FIELDS = (
 	("name", "NAME", "e.g. Pirate", "the lever's name in the LEVERS list"),
 	("plus", "PLUS POLE", "e.g. pirate-like", "one or two words for the + side of the slider"),
-	("seeds_plus", "PLUS WORDS", "comma separated: pirate, arr, matey, sea, treasure", "words of the + side: they make the lexicon the lens reads the trait with"),
+	("seeds_plus", "PLUS WORDS (optional)", "comma separated: pirate, arr, matey, sea, treasure", "words of the + side: they make the lexicon the lens reads the trait with\nwithout words on both sides the lever still steers, but it is not measured (no MEASURED value, no TARGET)"),
 	("desc_plus", "PLUS CHARACTER (optional)", "e.g. a salty old pirate who talks about the sea and says arr", "who the model plays at the + pole: the lever is extracted from replies written in this character\nempty: built from the pole and its words"),
 	("minus", "MINUS POLE", "e.g. landlubber", "one or two words for the − side of the slider"),
-	("seeds_minus", "MINUS WORDS", "comma separated: formal, polite, office, standard", "words of the − side"),
+	("seeds_minus", "MINUS WORDS (optional)", "comma separated: formal, polite, office, standard", "words of the − side\nwithout words on both sides the lever still steers, but it is not measured"),
 	("desc_minus", "MINUS CHARACTER (optional)", "e.g. a polite, formal office clerk", "who the model plays at the − pole\nempty: built from the pole and its words"),
 )
-NEEDED = ("name", "seeds_plus", "seeds_minus")
+NEEDED = ("name", "plus", "minus")
 
 
 def _note(text, color=None):
@@ -4364,8 +4364,10 @@ class TraitDialog(EvaDialog):
 		self.needed = ("name",) if t.get("lever_only") and not t.get("no_lexicon") else NEEDED
 		if t.get("no_lexicon"):
 			lay.addWidget(_note("not measured on this model: none of the words of one side is a single token for it\nadd more words (or English ones) to have the lens measure it; it steers either way", theme.WARN))
-		elif t.get("lever_only"):
+		elif t.get("lever_only") and t.get("from_goal"):
 			lay.addWidget(_note("made from a goal: no words needed, it steers without being measured\nadd words on both sides to have the lens measure it too"))
+		else:
+			lay.addWidget(_note("words are optional: without words on both sides the lever steers but is not measured (no MEASURED value, no TARGET)"))
 		if mode == "edit":
 			lay.addWidget(_note("saving rebuilds the lever: it goes back to 0 and is extracted again the next time you move it"))
 		elif mode == "duplicate":
