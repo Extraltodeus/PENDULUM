@@ -1,3 +1,4 @@
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QVBoxLayout
 
 from ui import theme
@@ -14,6 +15,7 @@ class ModelsWindow(EvaDialog):
 		lay.addWidget(self.frameless("MODELS", "pick a model · its VRAM plan and load options · LOAD, or plan loads and unloads in TO DO", "Ctrl+M"))
 		self.drawer = ModelDrawer()
 		lay.addWidget(self.drawer, 1)
+		self.refresh_key = QShortcut(QKeySequence("F5"), self, self.drawer.refresh_requested.emit)
 		self.resize(1240, 760)
 
 	def present(self):
