@@ -383,7 +383,7 @@ class MainWindow(Frameless, QMainWindow):
 		self.header.buttons["export"].clicked.connect(self.export)
 		self.header.buttons["assets"].clicked.connect(self.open_assets)
 		self.apply_keys = [QShortcut(QKeySequence(k), self, self.apply_key) for k in ("Ctrl+Return", "Ctrl+Enter")]
-		self.retry_key = QShortcut(QKeySequence("Ctrl+R"), self, self.chat._retry)
+		self.retry_keys = [QShortcut(QKeySequence(k), self, self.chat._retry) for k in ("Ctrl+R", "F5")]
 		self.assets_dlg = None
 		self.header.buttons["exports"].clicked.connect(self.open_exports)
 		self.header.buttons["sound"].clicked.connect(self.toggle_sound)

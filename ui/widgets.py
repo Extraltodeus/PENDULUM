@@ -2391,7 +2391,7 @@ class ChatPanel(QWidget):
 		self.meta.setStyleSheet(f"color: {theme.MUTED};")
 		row.addWidget(self.meta, 1)
 		self.b_stop = button("STOP", "stop the generation (Esc)")
-		self.b_retry = button("↻ RETRY", "regenerate the last answer with the current levers (Ctrl+R)\nthe earlier tries stay: ‹ › on the reply browses them")
+		self.b_retry = button("↻ RETRY", "regenerate the last answer with the current levers (Ctrl+R or F5)\nthe earlier tries stay: ‹ › on the reply browses them")
 		self.b_rewind = button("↶ REWIND", "take back the last message and its reply: the dialogue goes back one exchange, so RETRY works on the message before\nthe message comes back in the input (if it is empty) to edit or send again · its replies stay in the HISTORY")
 		self.b_hist = button("HISTORY", "every reply with the configuration that made it, retries and cleared dialogues included (Ctrl+H)")
 		self.b_clear = button("CLEAR", "clear the conversation (its replies stay in the HISTORY)")
