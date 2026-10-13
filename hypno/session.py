@@ -379,7 +379,7 @@ class Session:
 
 	def extra_rows(self):
 		measured = {d["id"] for d in self.trait_defs()}
-		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": True, "lever_only": True, "from_goal": d.get("from_goal", ""), "lexicon": {}} for d in self.defs if d.get("custom") and d["id"] not in measured]
+		return [{"id": d["id"], "name": d["name"], "plus": d["plus"], "minus": d["minus"], "custom": True, "lever_only": True, "from_goal": d.get("from_goal", ""), "no_lexicon": bool(d.get("seeds_plus") and d.get("seeds_minus")), "seeds_plus": d.get("seeds_plus", []), "seeds_minus": d.get("seeds_minus", []), "desc_plus": d.get("desc_plus", ""), "desc_minus": d.get("desc_minus", ""), "lexicon": {}} for d in self.defs if d.get("custom") and d["id"] not in measured]
 
 	def snapshot(self):
 		if not self.engine or not self.engine.loaded:

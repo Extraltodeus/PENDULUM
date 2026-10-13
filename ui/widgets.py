@@ -1650,7 +1650,7 @@ class LeverTable(QWidget):
 				rows.append(("", "scored by the judge: who are you? what do you want? who am I to you? · GOALS window", theme.DIM))
 				return {"title": f"{t['name'].upper()} · GOAL", "rows": rows}
 			if t.get("lever_only"):
-				rows.append(("", "not measured: " + ("a lever made from a goal" if t.get("from_goal") else "a custom lever") + " has no word list the lens can read", theme.MUTED))
+				rows.append(("", "not measured: " + ("its words give no lexicon on this model (none is a single token on one side): add more words, or English ones" if t.get("no_lexicon") else ("a lever made from a goal" if t.get("from_goal") else "a custom lever") + " has no word list the lens can read"), theme.MUTED))
 				return {"title": f"{t['name'].upper()} · MEASURED", "rows": rows}
 			rows.append(("baseline", f"{b:+.2f}   (no lever)" if b is not None else "not measured yet", theme.TEXT))
 			if c is not None:
@@ -1663,7 +1663,7 @@ class LeverTable(QWidget):
 			rows.append(("", "open GOALS (right-click → OPEN GOALS…) and TRAIN it here, or ALIGN it; the slider stays inactive until then", theme.TEXT))
 			return {"title": f"{t['name'].upper()} · GOAL", "rows": rows}
 		if t.get("lever_only"):
-			prof = "not measured (" + ("made from a goal's character" if t.get("from_goal") else "no word list for the lens") + ")"
+			prof = "not measured (" + ("its words give no lexicon on this model" if t.get("no_lexicon") else "made from a goal's character" if t.get("from_goal") else "no word list for the lens") + ")"
 		elif t.get("goal"):
 			prof = "not checked yet" if b is None and c is None else " · ".join(s for s in (f"{c:.0%} match at the last check" if c is not None else "", f"{b:.0%} without it" if b is not None else "") if s)
 		elif c is not None:
@@ -4135,8 +4135,10 @@ class TraitDialog(EvaDialog):
 			lay.addWidget(l)
 			lay.addWidget(e)
 			self.fields[key] = e
-		self.needed = ("name",) if t.get("lever_only") else NEEDED
-		if t.get("lever_only"):
+		self.needed = ("name",) if t.get("lever_only") and not t.get("no_lexicon") else NEEDED
+		if t.get("no_lexicon"):
+			lay.addWidget(_note("not measured on this model: none of the words of one side is a single token for it\nadd more words (or English ones) to have the lens measure it; it steers either way", theme.WARN))
+		elif t.get("lever_only"):
 			lay.addWidget(_note("made from a goal: no words needed, it steers without being measured\nadd words on both sides to have the lens measure it too"))
 		if mode == "edit":
 			lay.addWidget(_note("saving rebuilds the lever: it goes back to 0 and is extracted again the next time you move it"))
