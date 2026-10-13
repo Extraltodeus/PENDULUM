@@ -122,6 +122,7 @@ class Session:
 		self.blame = {}
 		self.guard_free = []
 		self.current_vectors = {}
+		self.image_cache = {}
 		self.probe = None
 		self.coh = None
 		self.judge = None
@@ -1058,13 +1059,39 @@ class Session:
 		missing = [p for p in plus + minus if not os.path.isfile(p)]
 		if missing:
 			raise RuntimeError(f"'{trait['name']}': {len(missing)} image(s) missing in {os.path.dirname(missing[0])}")
-		self.log(f"'{trait['name']}' from images: {len(plus)} + {len(minus)} read through {os.path.basename(mm)}")
-		vis = Vision(self.engine, mm)
+		layers = IW.extract_layers(self.band, self.engine.n_layer)
+		vis, hits = [None], [0]
+
+		def read(path):
+			agg = self.image_cache.get(self.image_key(path, layers))
+			if agg is not None:
+				hits[0] += 1
+				return agg
+			if vis[0] is None:
+				vis[0] = Vision(self.engine, mm)
+			caps, spans = vis[0].read(path, IW.PROMPT, layers)
+			agg = IW.aggregate(caps, IW.rows_of(spans, "after"), layers)
+			self.keep_image(path, layers, agg)
+			return agg
+
 		try:
 			poles = set(IW.pole_paths(trait, "plus") + IW.pole_paths(trait, "minus"))
-			return IW.extract(vis, self.engine, plus, minus, self.band, stop, on_progress, {p: IW.POLE_WEIGHT for p in poles})
+			ex = IW.extract(read, self.engine, plus, minus, self.band, stop, on_progress, {p: IW.POLE_WEIGHT for p in poles})
 		finally:
-			vis.close()
+			if vis[0] is not None:
+				vis[0].close()
+		n = len(plus) + len(minus)
+		self.log(f"'{trait['name']}' from images: " + (f"{n - hits[0]} read through {os.path.basename(mm)}" if n > hits[0] else "nothing to read again") + (f", {hits[0]} reused from when it was saved" if hits[0] else ""))
+		return ex
+
+	def image_key(self, path, layers):
+		st = os.stat(path)
+		return ((self.info or {}).get("path", ""), os.path.normcase(os.path.abspath(path)), st.st_size, st.st_mtime_ns, tuple(layers))
+
+	def keep_image(self, path, layers, agg):
+		if len(self.image_cache) >= 256:
+			self.image_cache.clear()
+		self.image_cache[self.image_key(path, layers)] = agg
 
 	def mmproj(self):
 		return find_mmproj((self.info or {}).get("path", "")) if self.engine is not None and self.engine.loaded else ""
@@ -1079,6 +1106,7 @@ class Session:
 			raise RuntimeError("add images to at least one side")
 		lo, hi = self.band or (0, self.engine.n_layer - 1)
 		layers = list(range(lo, hi + 1))
+		wide = IW.extract_layers((lo, hi), self.engine.n_layer)
 		mask = self.english.to(self.readout.device)
 		total = len(plus) + len(minus) + 1
 		done = 0
@@ -1091,7 +1119,8 @@ class Session:
 				acc = None
 				for path in paths:
 					check(stop)
-					caps, spans = vis.read(path, IW.PROMPT, layers)
+					caps, spans = vis.read(path, IW.PROMPT, sorted(set(layers) | set(wide)))
+					self.keep_image(path, wide, IW.aggregate(caps, IW.rows_of(spans, "after"), wide))
 					if where == "both":
 						p = (IW.profile(self.readout, caps, IW.rows_of(spans, "image"), layers) + IW.profile(self.readout, caps, IW.rows_of(spans, "after"), layers)) / 2
 					else:

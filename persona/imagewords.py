@@ -57,29 +57,40 @@ def store_images(tid, pole, sources):
 	return pairs
 
 
-def extract(vision, engine, plus, minus, band, stop=None, on_progress=None, weights=None):
+def extract_layers(band, n_layer):
 	lo, hi = band
-	layers = list(range(max(1, lo - 2), min(engine.n_layer - 1, hi) + 1))
+	return list(range(max(1, lo - 2), min(n_layer - 1, hi) + 1))
+
+
+def aggregate(caps, rows, layers):
+	out = {"sums": {}, "norms": {}, "n": len(rows)}
+	for l in layers:
+		h = caps[l][[r for r in rows if r < len(caps[l])]].astype(np.float64)
+		out["sums"][l] = h.sum(0)
+		out["norms"][l] = float(np.linalg.norm(h, axis=1).sum())
+	return out
+
+
+def extract(read, engine, plus, minus, band, stop=None, on_progress=None, weights=None):
+	layers = extract_layers(band, engine.n_layer)
 	sums = {p: {l: np.zeros(engine.n_embd, dtype=np.float64) for l in layers} for p in ("plus", "minus")}
 	norms = {l: 0.0 for l in layers}
 	counts = {"plus": 0, "minus": 0}
 	total = len(plus) + len(minus) + 1
 	done, span = 0, []
 
-	def add(pole, caps, rows, w=1.0):
+	def add(pole, agg, w=1.0):
 		for l in layers:
-			h = caps[l][[r for r in rows if r < len(caps[l])]].astype(np.float64)
-			sums[pole][l] += w * h.sum(0)
-			norms[l] += w * float(np.linalg.norm(h, axis=1).sum())
-		counts[pole] += w * len(rows)
+			sums[pole][l] += w * agg["sums"][l]
+			norms[l] += w * agg["norms"][l]
+		counts[pole] += w * agg["n"]
 
 	for pole, paths in (("plus", plus), ("minus", minus)):
 		for path in paths:
 			check(stop)
-			caps, spans = vision.read(path, PROMPT, layers)
-			rows = rows_of(spans, "after")
-			span.append(len(rows))
-			add(pole, caps, rows, (weights or {}).get(path, 1.0))
+			agg = read(path)
+			span.append(agg["n"])
+			add(pole, agg, (weights or {}).get(path, 1.0))
 			done += 1
 			if on_progress:
 				on_progress(done / total)
@@ -96,7 +107,7 @@ def extract(vision, engine, plus, minus, band, stop=None, on_progress=None, weig
 			engine.set_capture(None)
 			engine.reset()
 		n = int(round(sum(span) / max(1, len(span)))) or len(toks)
-		add(empty[0], caps, list(range(max(0, len(toks) - n), len(toks))))
+		add(empty[0], aggregate(caps, list(range(max(0, len(toks) - n), len(toks))), layers))
 	if on_progress:
 		on_progress(1.0)
 	n = max(1, counts["plus"] + counts["minus"])
