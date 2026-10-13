@@ -449,6 +449,7 @@ class HeaderBar(QWidget):
 		self.queued = 0
 		self.job = ""
 		self.status_rect = QRectF()
+		self.stats_rect = QRectF()
 		self.gpus = []
 		self.lay = QHBoxLayout(self)
 		self.lay.setContentsMargins(0, 0, 8, 0)
@@ -496,28 +497,35 @@ class HeaderBar(QWidget):
 		p.setPen(theme.qc(theme.MUTED))
 		p.drawText(16, 42, "WORKSPACE · PERSONA · LEVERS")
 		limit = min((b.geometry().x() for b in self.buttons.values()), default=self.width()) - 18
+		label, color = self.status
+		text = label + (f"  +{self.queued} queued" if self.queued else "")
+		p.setFont(theme.mono(8.5, True))
+		room = limit - p.fontMetrics().horizontalAdvance(text) - 24 - 12
 		x = 250
 		name_w = 260
 		p.setFont(theme.mono(9.5, True))
 		stats = list(self.stats)
-		need = lambda: sum(max(p.fontMetrics().horizontalAdvance(str(v)[:60]), 60) + 30 for _l, v, _c in stats) + len(self.gpus) * 112 + 90
+		need = lambda: sum(max(p.fontMetrics().horizontalAdvance(str(v)[:60]), 60) + 30 for _l, v, _c in stats) + len(self.gpus) * 112
 		for drop in self.EXPENDABLE:
-			if 250 + need() > limit:
+			if 250 + need() > room:
 				stats = [s for s in stats if s[0] != drop]
-		if 250 + need() > limit:
-			name_w = max(90, 260 - (250 + need() - limit))
-		for label, value, color in stats:
-			p.setFont(theme.mono(7.2))
-			p.setPen(theme.qc(theme.MUTED))
-			p.drawText(x, 20, label)
+		if 250 + need() > room:
+			name_w = max(90, 260 - (250 + need() - room))
+		for s_label, value, s_color in stats:
 			p.setFont(theme.mono(9.5, True))
-			p.setPen(theme.qc(color or theme.TEXT))
 			fm = p.fontMetrics()
 			v = fm.elidedText(str(value), Qt.TextElideMode.ElideRight, name_w)
+			w = max(fm.horizontalAdvance(v), fm.horizontalAdvance(s_label))
+			if x + w > room:
+				break
+			p.setPen(theme.qc(s_color or theme.TEXT))
 			p.drawText(x, 39, v)
-			x += max(fm.horizontalAdvance(v), p.fontMetrics().horizontalAdvance(label)) + 30
+			p.setFont(theme.mono(7.2))
+			p.setPen(theme.qc(theme.MUTED))
+			p.drawText(x, 20, s_label)
+			x += w + 30
 		for g in self.gpus:
-			if x + 112 > limit - 80:
+			if x + 90 > room:
 				break
 			p.setFont(theme.mono(7.2))
 			p.setPen(theme.qc(theme.MUTED))
@@ -529,14 +537,14 @@ class HeaderBar(QWidget):
 			p.setFont(theme.mono(7.2))
 			p.drawText(x, 48, f"{(g['total'] - g['free']) / 2**30:.1f}/{g['total'] / 2**30:.0f} GB")
 			x += w + 22
-		label, color = self.status
+		self.stats_rect = QRectF(250, 0, max(0, x - 250), self.height())
 		p.setFont(theme.mono(8.5, True))
 		p.setPen(theme.qc(color))
 		blink = int((time.perf_counter() - self.t0) * 2) % 2 == 0 or label == "IDLE"
 		if blink:
 			p.setBrush(theme.qc(color))
 			p.drawEllipse(QPointF(x + 6, 31), 3.5, 3.5)
-		text = label + (f"  +{self.queued} queued" if self.queued else "")
+		text = p.fontMetrics().elidedText(text, Qt.TextElideMode.ElideRight, max(0, int(limit - x - 16)))
 		p.drawText(x + 16, 35, text)
 		self.status_rect = QRectF(x, 18, p.fontMetrics().horizontalAdvance(text) + 24, 24)
 		p.end()
@@ -635,6 +643,7 @@ class HeaderBar(QWidget):
 		self.status_rect = sr
 		label_f, value_f, small_f = eva.font(11, 600), eva.font(17.5, 700), eva.font(12, 600)
 		y0, bh = 6.0, 41.0
+		x_stats = x
 		for kind, a, b, color, w in self.fit_items(x, sr.left() - 14 - x, label_f, value_f):
 			r = QRectF(x, y0, w, bh)
 			eva.box(p, r, theme.ACCENT, 85)
@@ -656,6 +665,7 @@ class HeaderBar(QWidget):
 				p.setPen(theme.qc(theme.TEXT))
 				p.drawText(QPointF(x + 6, y0 + 37), f"{(a['total'] - a['free']) / 2**30:.1f} / {a['total'] / 2**30:.0f} GB")
 			x += w + 8
+		self.stats_rect = QRectF(x_stats, 0, max(0, x - x_stats), H)
 		self._status_box(p, sr)
 		p.end()
 
@@ -669,9 +679,15 @@ class HeaderBar(QWidget):
 		return "\n".join(rows)
 
 	def event(self, e):
-		if e.type() == QEvent.Type.ToolTip and self.status_rect.contains(e.position() if hasattr(e, "position") else QPointF(e.pos())):
-			QToolTip.showText(e.globalPos(), self.status_tip(), self)
-			return True
+		if e.type() == QEvent.Type.ToolTip:
+			pos = e.position() if hasattr(e, "position") else QPointF(e.pos())
+			if self.status_rect.contains(pos):
+				QToolTip.showText(e.globalPos(), self.status_tip(), self)
+				return True
+			if self.stats_rect.contains(pos) and (self.stats or self.gpus):
+				rows = [f"{label}: {value}" for label, value, _c in self.stats] + [f"{g['name']}: {(g['total'] - g['free']) / 2**30:.1f} / {g['total'] / 2**30:.0f} GB" for g in self.gpus]
+				QToolTip.showText(e.globalPos(), "\n".join(rows), self)
+				return True
 		return super().event(e)
 
 	def mousePressEvent(self, e):
