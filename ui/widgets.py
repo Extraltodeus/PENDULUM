@@ -966,6 +966,7 @@ class LeverTable(QWidget):
 	extract_requested = Signal(str)
 	target_committed = Signal(str, object)
 	as_lever_requested = Signal(str)
+	order_changed = Signal(object)
 	RANGE = 1.5
 	STEP = 0.05
 	NAME_W = 104
@@ -997,6 +998,9 @@ class LeverTable(QWidget):
 		self.aligning = False
 		self.drag = None
 		self._press = None
+		self._grab = None
+		self.moving = None
+		self.custom_order = False
 		self.focus_row = -1
 		self.hover_row = -1
 		self.highlight = -1
@@ -1014,6 +1018,9 @@ class LeverTable(QWidget):
 		return QSize(520, self.top + max(1, len(self.traits)) * self.row_h + 6)
 
 	def set_traits(self, traits):
+		if self.moving is not None:
+			self.unsetCursor()
+		self.moving = self._grab = None
 		self.traits = traits
 		fm = QFontMetrics(theme.mono(8, True))
 		widest = max([fm.horizontalAdvance((("└ " if t.get("sub") else "") + t["name"]).upper()) + (14 if t.get("sub") else 4) for t in traits] or [0])
@@ -1156,6 +1163,7 @@ class LeverTable(QWidget):
 			return
 		if eva.on():
 			self._paint_nerv(p)
+			self._paint_moving(p)
 			p.end()
 			if self.hover_row >= 0 or self.drag is not None:
 				self._emit_peek()
@@ -1291,9 +1299,64 @@ class LeverTable(QWidget):
 				p.setFont(theme.mono(7.5))
 				p.setPen(theme.qc(theme.ACCENT2 if c is not None else theme.MUTED) if goal else theme.signed_color(shown, 255 if c is not None else 150))
 				p.drawText(QRectF(x_b1, cy - 8, nw, 16), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, f"{shown:.0%}" if goal else f"{shown:+.2f}")
+		self._paint_moving(p)
 		p.end()
 		if self.hover_row >= 0 or self.drag is not None:
 			self._emit_peek()
+
+	def _paint_moving(self, p):
+		if self.moving is None:
+			return
+		blocks = self.blocks()
+		n = len(blocks[self.block_of(self.moving, blocks)])
+		r = QRectF(1.5, self.top + self.moving * self.row_h + 0.5, self.width() - 3, n * self.row_h - 1)
+		fill = QColor(theme.ACCENT)
+		fill.setAlpha(34)
+		p.save()
+		p.setBrush(fill)
+		p.setPen(QPen(QColor(theme.ACCENT), 1.5))
+		p.drawRect(r)
+		p.restore()
+
+	def blocks(self):
+		out = []
+		for t in self.traits:
+			if t.get("sub") and out:
+				out[-1].append(t)
+			else:
+				out.append([t])
+		return out
+
+	def block_of(self, i, blocks):
+		n = 0
+		for k, b in enumerate(blocks):
+			if n <= i < n + len(b):
+				return k
+			n += len(b)
+		return len(blocks) - 1
+
+	def move_to(self, y):
+		blocks = self.blocks()
+		i = max(0, min(len(self.traits) - 1, int((y - self.top) // self.row_h)))
+		src, dst = self.block_of(self.moving, blocks), self.block_of(i, blocks)
+		if src == dst:
+			return
+		keep = self.traits[self.focus_row]["id"] if 0 <= self.focus_row < len(self.traits) else None
+		b = blocks.pop(src)
+		blocks.insert(dst, b)
+		self.traits = [t for blk in blocks for t in blk]
+		self.moving = sum(len(x) for x in blocks[:dst])
+		self.focus_row = next((k for k, t in enumerate(self.traits) if t["id"] == keep), -1)
+		self.update()
+
+	def in_grip(self, x):
+		return x < self.geo()[0]
+
+	def scroll_area(self):
+		w = self.parent()
+		while w is not None and not isinstance(w, QScrollArea):
+			w = w.parent()
+		return w
 
 	def _slider_bg(self, x_s0, x_s1, mid, one):
 		w = x_s1 - x_s0
@@ -1627,6 +1690,7 @@ class LeverTable(QWidget):
 			return
 		self.focus_row = i
 		self._press = None
+		self._grab = (i, e.position().y()) if self.in_grip(e.position().x()) else None
 		if self.in_slider(e.position().x()):
 			self.drag = i
 			self.set_at(i, e.position().x())
@@ -1741,6 +1805,21 @@ class LeverTable(QWidget):
 		self.peek.emit(card)
 
 	def mouseMoveEvent(self, e):
+		if self.moving is not None:
+			self.move_to(e.position().y())
+			sa = self.scroll_area()
+			if sa is not None:
+				sa.ensureVisible(0, int(e.position().y()), 0, self.row_h)
+			return
+		grab = self._grab
+		if grab is not None and e.buttons() & Qt.MouseButton.LeftButton and abs(e.position().y() - grab[1]) >= 4:
+			self._grab = None
+			blocks = self.blocks()
+			self.moving = sum(len(b) for b in blocks[:self.block_of(grab[0], blocks)])
+			self.setCursor(Qt.CursorShape.ClosedHandCursor)
+			self.peek.emit(None)
+			self.update()
+			return
 		press = getattr(self, "_press", None)
 		if self.drag is None and press is not None and e.buttons() & Qt.MouseButton.LeftButton and abs(e.position().x() - press[1]) >= 4:
 			self.drag = press[0]
@@ -1751,6 +1830,10 @@ class LeverTable(QWidget):
 			self._emit_peek()
 			return
 		i = self.row_at(e.position().y())
+		if i >= 0 and self.in_grip(e.position().x()):
+			self.setCursor(Qt.CursorShape.OpenHandCursor)
+		else:
+			self.unsetCursor()
 		if i != self.hover_row:
 			self.hover_row = i
 			self.hovered.emit(i)
@@ -1759,6 +1842,13 @@ class LeverTable(QWidget):
 
 	def mouseReleaseEvent(self, e):
 		self._press = None
+		self._grab = None
+		if self.moving is not None:
+			self.moving = None
+			self.unsetCursor()
+			self.update()
+			self.order_changed.emit([t["id"] for t in self.traits if not t.get("sub")])
+			return
 		if self.drag is not None:
 			t = self.traits[self.drag]
 			self.drag = None
@@ -1863,6 +1953,7 @@ class LeverTable(QWidget):
 				act.setData(("as_lever", t.get("goal")))
 				act.setEnabled(twin is None)
 				act.setToolTip("make a regular lever from this goal's character (character ↔ default assistant), listed with the other levers\nthe persona direction it already has on this model moves to it; the goal itself is then active only through TRAIN or ALIGN" if twin is None else f"its lever is {twin['name']} in the list")
+			self.order_menu(menu)
 			self.restore_menu(menu)
 			return menu
 		act = menu.addAction("EDIT…")
@@ -1900,8 +1991,16 @@ class LeverTable(QWidget):
 		ex.setChecked(tid in self.exempt)
 		ex.setData(("exempt", tid))
 		ex.setToolTip("override the judge for this lever: it is applied exactly as set, never scaled down by the coherence guard\n(useful when the judge mistakes a wanted style, e.g. deadpan, for incoherence)")
+		self.order_menu(menu)
 		self.restore_menu(menu)
 		return menu
+
+	def order_menu(self, menu):
+		menu.addSeparator()
+		act = menu.addAction("RESET THE LEVER ORDER")
+		act.setData(("order", ""))
+		act.setEnabled(self.custom_order)
+		act.setToolTip("back to the usual order" if self.custom_order else "drag a lever by its name to move it up or down: the order is kept")
 
 	def restore_menu(self, menu):
 		if not self.hidden:
@@ -1941,6 +2040,9 @@ class LeverTable(QWidget):
 			return
 		if kind == "as_lever":
 			self.as_lever_requested.emit(tid)
+			return
+		if kind == "order":
+			self.order_changed.emit([])
 			return
 		if kind == "exempt":
 			self.exempt_requested.emit(tid, tid not in self.exempt)

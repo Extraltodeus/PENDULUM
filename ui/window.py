@@ -80,6 +80,20 @@ class DarkFrames(QObject):
 		return False
 
 
+def order_rows(rows, order):
+	if not order:
+		return rows
+	rank = {tid: k for k, tid in enumerate(order)}
+	blocks = []
+	for r in rows:
+		if r.get("sub") and blocks:
+			blocks[-1].append(r)
+		else:
+			blocks.append([r])
+	keyed = sorted(enumerate(blocks), key=lambda kb: rank.get(kb[1][0]["id"], len(rank) + kb[0]))
+	return [r for _, b in keyed for r in b]
+
+
 def _load_ui():
 	try:
 		with open(UI_PATH, encoding="utf-8") as f:
@@ -427,6 +441,7 @@ class MainWindow(Frameless, QMainWindow):
 		self.lever_table.recalibrate_requested.connect(self.recalibrate)
 		self.lever_table.goals_requested.connect(self.open_goals)
 		self.lever_table.as_lever_requested.connect(self.goal_as_lever)
+		self.lever_table.order_changed.connect(self.set_lever_order)
 		self.lever_table.exempt_requested.connect(lambda tid, on: self.plan_add("exempt", f"{'exempt' if on else 'guard again'} {self.lever_name(tid)}", lambda s, t=tid, o=on: s.set_exempt(t, o)))
 		self.drawer.base_requested.connect(self.ask_base)
 		self.concepts.hovered.connect(self.iris.set_chover)
@@ -2095,7 +2110,17 @@ class MainWindow(Frameless, QMainWindow):
 			rows.append(g)
 			if (self.levers.get(g["id"]) or {}).get("carrier") == "both" or (g["id"] not in self.levers and self.lever_table.planned.get(g["id"]) == "both"):
 				rows.append({"id": GO.lora_key(g["id"]), "name": "LoRA", "goal": g.get("goal"), "sub": True, "parent": g["id"], "parent_name": g["name"], "plus": g.get("plus", ""), "minus": g.get("minus", ""), "custom": True, "lexicon": {}})
-		return rows
+		return order_rows(rows, self.ui.get("lever_order") or [])
+
+	def set_lever_order(self, ids):
+		if ids:
+			shown = set(ids)
+			ids = list(ids) + [t for t in self.ui.get("lever_order") or [] if t not in shown]
+		self.ui["lever_order"] = ids
+		self.lever_table.custom_order = bool(ids)
+		if not ids:
+			self.lever_table.set_traits(self.lever_rows())
+		self.save_ui()
 
 	def on_lever_hover(self, i):
 		rows = self.lever_table.traits
@@ -2182,6 +2207,7 @@ class MainWindow(Frameless, QMainWindow):
 		rows = self.lever_rows()
 		if self.goals_dlg is not None:
 			self.goals_dlg.set_twins(self.goal_twins())
+		self.lever_table.custom_order = bool(self.ui.get("lever_order"))
 		self.lever_table.set_traits(rows)
 		self.lever_table.values = {t["id"]: self.strengths[t["id"]] if t["id"] in self.strengths else self.strengths.get(t["parent"], 0.0) if t.get("sub") and t["parent"] in self.levers else self.place_default(t["id"]) for t in rows}
 		self.lever_table.targets = dict(self.targets)
