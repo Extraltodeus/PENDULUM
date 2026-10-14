@@ -4643,7 +4643,7 @@ class ExportDialog(EvaDialog):
 		lb.addLayout(row)
 		row = QHBoxLayout()
 		row.addWidget(_caption("PREFIX"))
-		self.prefix = QLineEdit(LORA_STYLES["hf"][0])
+		self.prefix = QLineEdit(LORA_STYLES["comfyui"][0])
 		self.prefix.setFont(theme.mono(8.5))
 		self.prefix.setToolTip("text put before layers.N in every key: edit it if your tool names the layers differently (e.g. model.language_model.)")
 		row.addWidget(self.prefix, 1)
@@ -4698,17 +4698,17 @@ class ExportDialog(EvaDialog):
 		self.dose_hint.setStyleSheet(f"color: {theme.WARN if v > 1.0001 else theme.DIM};")
 
 	def _style(self, _i=0):
-		self.prefix.setText(LORA_STYLES.get(self.style.currentData(), LORA_STYLES["hf"])[0])
+		self.prefix.setText(LORA_STYLES.get(self.style.currentData(), LORA_STYLES["comfyui"])[0])
 		self._example()
 
 	def _example(self, _t=""):
-		key = example_key(self.style.currentData() or "hf", self.prefix.text())
+		key = example_key(self.style.currentData() or "comfyui", self.prefix.text())
 		self.example.setText(f"keys like  {key}")
 		self.example.setToolTip(key)
 
 	def values(self):
 		kind = "lora" if self.fmt_lora.isChecked() and self.fmt_lora.isEnabled() else ("baked" if self.fmt_bake.isChecked() and self.fmt_bake.isEnabled() else "cvec")
-		return self.final_name(), round(float(self.dose.value()), 3), kind, self.style.currentData() or "hf", self.prefix.text()
+		return self.final_name(), round(float(self.dose.value()), 3), kind, self.style.currentData() or "comfyui", self.prefix.text()
 
 
 SPLIT_TIPS = {"layer": "layer: whole layers per GPU (default: best with two GPUs on PCIe)", "row": "row: every matrix split across the GPUs (tensor parallel: needs a fast link, often slower on PCIe)", "none": "none: the whole model on the main GPU"}

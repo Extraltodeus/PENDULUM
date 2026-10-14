@@ -127,7 +127,7 @@ def bake(src, dst, vectors, llama_dir="", note="", on_progress=None):
 APPROX = "a lever adds a fixed vector to the activations; a LoRA changes weights, so it can only approximate it: rank 1 per layer on the MLP output weight, fitted on sample prompts (closed form), fidelity measured on unseen prompts"
 
 
-def export(session, name, dose=1.0, kind="cvec", on_progress=None, style="hf", prefix=None):
+def export(session, name, dose=1.0, kind="cvec", on_progress=None, style="comfyui", prefix=None):
 	baked = kind == "baked"
 	name = safe_name(name)
 	out_dir = os.path.join(config.EXPORTS_DIR, name)
@@ -245,11 +245,11 @@ def export_saved_lora(src, name, model="", model_name="", arch="", goal="", scal
 	return {"dir": out_dir, "manifest": manifest, "adapters": adapters, "lmstudio": lm, "lmstudio_text": lmstudio_file(out_dir, lm)}
 
 
-def export_lora(session, out_dir, name, dose, style="hf", prefix=None, on_progress=None):
+def export_lora(session, out_dir, name, dose, style="comfyui", prefix=None, on_progress=None):
 	from hypno import lorafit
 
 	info = session.engine.info
-	style = style if style in lorafit.STYLES else "hf"
+	style = style if style in lorafit.STYLES else "comfyui"
 	prefix = lorafit.STYLES[style][0] if prefix is None else prefix
 	modules, rank, steer, report, held = lorafit.build(session, dose, on_progress)
 	tensors = {}

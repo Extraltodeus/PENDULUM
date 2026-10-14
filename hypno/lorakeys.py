@@ -1,8 +1,8 @@
 NORMED_FFN = ("gemma", "gemma2", "gemma3", "gemma3n", "gemma4", "olmo2", "cohere2", "glm4")
 STYLES = {
+	"comfyui": ("text_encoders.transformer.model.", "ComfyUI text encoder (LoraLoader: strength_clip)"),
 	"hf": ("model.", "Hugging Face / transformers names"),
 	"peft": ("base_model.model.model.", "PEFT adapter folder (adapter_model.safetensors + adapter_config.json)"),
-	"comfyui": ("text_encoders.transformer.model.", "ComfyUI text encoder (LoraLoader: strength_clip)"),
 	"kohya": ("lora_te_", "kohya style, single text encoder"),
 }
 MODULES = {"ffn_down": "mlp.down_proj", "ffn_up": "mlp.up_proj", "ffn_gate": "mlp.gate_proj", "attn_q": "self_attn.q_proj", "attn_k": "self_attn.k_proj", "attn_v": "self_attn.v_proj", "attn_output": "self_attn.o_proj"}
