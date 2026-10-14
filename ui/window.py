@@ -421,6 +421,10 @@ class MainWindow(Frameless, QMainWindow):
 		self.chat.stop.connect(self.cancel)
 		self.chat.clear.connect(lambda: self.plan_add("reset_chat", "clear the dialogue", lambda s: s.reset_chat()))
 		self.chat.rewind.connect(self.rewind_chat)
+		self.chat.b_seed.blockSignals(True)
+		self.chat.b_seed.setChecked(bool(config.load_settings().get("chat_seed_lock")))
+		self.chat.b_seed.blockSignals(False)
+		self.chat.seed_lock_changed.connect(lambda on: self.worker.light("prefs", lambda s, on=bool(on): s.set_setting("chat_seed_lock", on)))
 		self.chat.system_changed.connect(self.system_edited)
 		self.applied_system = ""
 		self.chat.config_restore.connect(self.restore_config)

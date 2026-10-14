@@ -2510,6 +2510,7 @@ class ChatPanel(QWidget):
 	history_requested = Signal()
 	apply_requested = Signal()
 	rewind = Signal()
+	seed_lock_changed = Signal(bool)
 
 	def __init__(self, parent=None):
 		super().__init__(parent)
@@ -2546,6 +2547,9 @@ class ChatPanel(QWidget):
 		self.b_hist = button("HISTORY", "every reply with the configuration that made it, retries and cleared dialogues included (Ctrl+H)")
 		self.b_clear = button("CLEAR", "clear the conversation (its replies stay in the HISTORY)")
 		self.b_send = button("SEND", "send (Enter): replies at once when nothing waits in TO DO\notherwise the message waits after the operations planned before it (APPLY runs them), it never goes ahead of lever settings\nplan several messages, lever changes and tries this way, come back later and pick the replies you like", accent=True)
+		self.b_seed = toggle("SEED 42", "lock the seed: every reply uses seed 42, so the same message with the same settings gives the same reply\nhandy to compare levers: only what you changed differs · RETRY then repeats the same reply unless something changed\noff: a new seed for each reply")
+		self.b_seed.toggled.connect(self.seed_lock_changed.emit)
+		row.addWidget(self.b_seed)
 		for b in (self.b_hist, self.b_clear, self.b_stop, self.b_rewind, self.b_retry, self.b_send):
 			row.addWidget(b)
 		lay.addLayout(row)

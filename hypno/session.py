@@ -53,6 +53,7 @@ def _jsonable(x):
 
 
 PROFILE_MODES = ("write", "read", "read_write")
+SEED_LOCK = 42
 READ_GAIN_DEFAULT = 1.6
 MIX_DRIFT = 0.5
 
@@ -2483,7 +2484,7 @@ class Session:
 			odds = odds.cpu().numpy()[:, expand]
 			self.emit("frame", {"i": i, "tok": self.strings[tok], "odds": odds.round(3).tolist(), "top": [[self.strings[x] for x in row] for row in top], "p": prob.round(4).tolist(), "trait": [[int(best_t[x]) for x in row] for row in top], "tv": [[float(best_v[x]) for x in row] for row in top], "ids": ids})
 
-		seed = int(np.random.default_rng().integers(1, 2**31 - 1))
+		seed = SEED_LOCK if self.settings.get("chat_seed_lock") else int(np.random.default_rng().integers(1, 2**31 - 1))
 		self.resteer()
 		cfg = self.chat_config(seed)
 		gid = f"{time.strftime('%Y%m%d%H%M%S')}-{seed % 100000:05d}"
