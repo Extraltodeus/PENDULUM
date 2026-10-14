@@ -4347,7 +4347,7 @@ class ImageDelegate(QStyledItemDelegate):
 
 class ImageList(QListWidget):
 	EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
-	THUMB = 64
+	THUMB = 84
 
 	def __init__(self, parent=None):
 		super().__init__(parent)
@@ -4356,7 +4356,8 @@ class ImageList(QListWidget):
 		self.setGridSize(QSize(self.THUMB + 10, self.THUMB + 10))
 		self.setResizeMode(QListWidget.ResizeMode.Adjust)
 		self.setMovement(QListWidget.Movement.Static)
-		self.setFixedHeight(self.THUMB + 26)
+		self.setMinimumHeight(self.THUMB + 26)
+		self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 		self.setAcceptDrops(True)
 		self.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
 		self.setItemDelegate(ImageDelegate(self))
@@ -4429,6 +4430,7 @@ class TraitDialog(EvaDialog):
 		self.setWindowTitle(title)
 		self.setStyleSheet(theme.STYLE)
 		self.setMinimumWidth(520)
+		self.resize(760, 700)
 		lay = QVBoxLayout(self)
 		lay.setSpacing(3)
 		lay.addWidget(DialogTitle(title.upper(), (trait or {}).get("name", "") if mode != "new" else ""))
@@ -4445,10 +4447,10 @@ class TraitDialog(EvaDialog):
 		page = QVBoxLayout(self.words_page)
 		page.setContentsMargins(0, 0, 0, 0)
 		page.setSpacing(3)
-		lay.addWidget(self.words_page)
+		lay.addWidget(self.words_page, 1)
 		self.images_page = self._images_page(vision or {})
 		self.images_page.setVisible(False)
-		lay.addWidget(self.images_page)
+		lay.addWidget(self.images_page, 1)
 		for key, label, ph, tip in TRAIT_FIELDS:
 			l = QLabel(label)
 			theme.tag_font(l, 7.5)
@@ -4470,6 +4472,7 @@ class TraitDialog(EvaDialog):
 			page.addWidget(_note("made from a goal: no words needed, it steers without being measured\nadd words on both sides to have the lens measure it too"))
 		else:
 			page.addWidget(_note("words are optional: without words on both sides the lever steers but is not measured (no MEASURED value, no TARGET)"))
+		page.addStretch(1)
 		if mode == "edit" and t and not t.get("custom", True):
 			self.switch.buttons["images"].setEnabled(False)
 			self.switch.buttons["images"].setToolTip("images are for custom levers: DUPLICATE this default lever to make one")
@@ -4525,7 +4528,7 @@ class TraitDialog(EvaDialog):
 			row.addWidget(add)
 			row.addWidget(clr)
 			v.addLayout(row)
-			v.addWidget(lst)
+			v.addWidget(lst, 1)
 			lst.add(self._trait.get(f"images_{pole}") or [], self._trait.get(f"poles_{pole}") or [])
 			self.img_lists[pole] = lst
 		v.addWidget(_note("click an image to make it a POLE: the lever leans on it most (every image counts, poles included)\nthe model only looks at them, no text is written · one side only: compared with no image\nthe images are copied into the working folder so the lever can be rebuilt on any model that sees"))
@@ -4535,7 +4538,6 @@ class TraitDialog(EvaDialog):
 		self.words_page.setVisible(key == "words")
 		self.images_page.setVisible(key == "images")
 		self.switch.set_value(key)
-		self.adjustSize()
 
 	def kind(self):
 		return self.switch.value() or "words"
