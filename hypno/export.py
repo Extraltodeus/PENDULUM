@@ -263,7 +263,7 @@ def export_lora(session, out_dir, name, dose, style="comfyui", prefix=None, on_p
 		if on_progress:
 			on_progress(0.85)
 		report["fidelity"] = lorafit.measure(session, gguf_path, steer, held)
-	meta = {"pendulum": APPROX, "model": info["name"], "levers": strengths, "dose": dose, "rank": rank, "fidelity": report.get("fidelity") or {}}
+	meta = {"model": info["name"], "levers": strengths, "dose": dose, "rank": rank, "fidelity": report.get("fidelity") or {}}
 	if style == "peft":
 		pdir = os.path.join(out_dir, f"{name}.peft")
 		os.makedirs(pdir, exist_ok=True)
